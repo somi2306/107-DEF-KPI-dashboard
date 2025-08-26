@@ -37,6 +37,6 @@ build/
 npm-debug.log*
 
 # Dossiers de données
-/backend/data/
+/backend/src/data/
 /backend/src/utils/stats/
 /backend/upload/
