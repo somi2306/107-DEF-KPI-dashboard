@@ -1,38 +1,22 @@
 import React, { useState } from 'react';
-
+import { MainLayout } from './components/layout/MainLayout';
+import { PredictionPage } from './pages/PredictionPage';
+import { MetricsPage } from './pages/MetricsPage';
 import 'katex/dist/katex.min.css';
 import './App.css';
+import { StatisticsPage } from './pages/StatisticsPage';
 
+import FusionPage from './pages/FusionPage';
 const App: React.FC = () => {
   const [activePage, setActivePage] = useState('prediction');
 
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1>My React App</h1>
-        <nav>
-          <button onClick={() => setActivePage('prediction')}>Prediction</button>
-          <button onClick={() => setActivePage('about')}>About</button>
-        </nav>
-      </header>
-      <main>
-        {activePage === 'prediction' && (
-          <div>
-            <h2>Prediction Page</h2>
-            <p>This is where the prediction functionality will go.</p>
-          </div>
-        )}
-        {activePage === 'about' && (
-          <div>
-            <h2>About Page</h2>
-            <p>This is where information about the app will go.</p>
-          </div>
-        )}
-      </main>
-      <footer>
-        <p>&copy; 2024 My React App</p>
-      </footer>
-    </div>
+    <MainLayout activePage={activePage} setActivePage={setActivePage}>
+      {activePage === 'prediction' && <PredictionPage />}
+      {activePage === 'metrics' && <MetricsPage />}
+      {activePage === 'statistics' && <StatisticsPage />}
+      {activePage === 'nettoyage' && <FusionPage />}
+    </MainLayout>
   );
 };
 
