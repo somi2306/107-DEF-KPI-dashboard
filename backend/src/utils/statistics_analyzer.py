@@ -9,8 +9,179 @@ from scipy.stats import skew, kurtosis, pearsonr
 import io
 import base64
 from scipy.stats import norm
-import numpy as np
+from pymongo import MongoClient
+import warnings
+import os
+from pymongo import MongoClient
+from dotenv import load_dotenv
+from urllib.parse import urlparse
+warnings.filterwarnings("ignore")
 
+import sys
+import io
+
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+if sys.stderr.encoding != 'utf-8':
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
+env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.env')
+load_dotenv(env_path)
+
+# Configuration de la connexion MongoDB
+def get_mongodb_connection():
+    """Établit une connexion à MongoDB Atlas"""
+    load_dotenv()
+    try:
+        mongodb_uri = os.getenv('MONGODB_URI')
+        if not mongodb_uri:
+            raise ValueError("MONGODB_URI non trouvée dans les variables d'environnement")
+        
+        masked_uri = re.sub(r':([^@]+)@', ':****@', mongodb_uri)
+        print(f"🔗 Connexion à MongoDB: {masked_uri}")
+        
+        client = MongoClient(mongodb_uri)
+        client.admin.command('ping')
+        print("✅ Connecté à MongoDB Atlas avec succès")
+        return client
+    except Exception as e:
+        print(f"❌ Erreur de connexion MongoDB: {e}")
+        return None
+
+# Fonction pour récupérer les données d'une ligne spécifique
+def get_line_data(line_number):
+    """Récupère les données pour une ligne spécifique depuis MongoDB"""
+    db = get_mongodb_connection()
+    if not db:
+        return None
+    
+    try:
+        collection_name = f"line_{line_number}_data"
+        collection = db[collection_name]
+        data = list(collection.find({}))
+        
+        print(f"📊 {len(data)} documents récupérés pour la ligne {line_number}")
+        
+        for doc in data:
+            if '_id' in doc:
+                doc['_id'] = str(doc['_id'])
+        
+        return data
+        
+    except Exception as e:
+        print(f"Erreur lors de la récupération des données: {e}")
+        return None
+    
+def expand_nested_columns(df):
+    """Développe les colonnes contenant des dictionnaires"""
+    expanded_dfs = []
+    for col in df.columns:
+        if df[col].apply(lambda x: isinstance(x, dict)).any():
+            expanded = pd.json_normalize(df[col])
+            expanded.columns = [f"{col}.{subcol}" for subcol in expanded.columns]
+            expanded_dfs.append(expanded)
+        else:
+            expanded_dfs.append(df[[col]])
+    return pd.concat(expanded_dfs, axis=1)
+
+def get_data_from_mongodb(line, method='4fill'):
+    """Récupère les données depuis MongoDB pour une ligne spécifique"""
+    client = get_mongodb_connection()
+    if not client:
+        return {"error": "Impossible de se connecter à MongoDB"}
+    
+    try:
+        db_name = '107_DEF_KPI_dashboard'
+        db = client[db_name]
+        collection = db['kpidatas']
+        
+
+        line_letter = line.replace('107', '')  # Transforme "107D" en "D"
+        
+        query = {
+            'source_line': line_letter,
+            'imputation_method': method  # Utilise le paramètre ici
+        }
+        documents = list(collection.find(query))
+        
+        if not documents:
+            # Message d'erreur plus clair
+            return {"error": f"Aucune donnée trouvée pour la ligne {line_letter} avec la méthode '{method}'"}
+        
+        print(f"✅ {len(documents)} documents récupérés pour la ligne {line_letter} (méthode: {method})")
+        
+        df = pd.DataFrame(documents)
+        df = expand_nested_columns(df)
+        
+        if '_id' in df.columns:
+            df = df.drop('_id', axis=1)
+        
+        print(f"📋 Dimensions initiales du DataFrame: {df.shape}")
+        return df
+    except Exception as e:
+        return {"error": f"Erreur MongoDB: {str(e)}"}
+
+def reconstruct_dataframe(documents):
+    """
+    Reconstruit un DataFrame pandas à partir des documents MongoDB
+    en recréant la structure hiérarchique des colonnes
+    """
+    all_keys = set()
+    for doc in documents:
+        extract_keys(doc, all_keys, prefix=[])
+    
+    multiindex_columns = []
+    column_mapping = {}
+    
+    metadata_fields = ['_id', 'source_line', 'import_date', 'original_filenames', 
+                      'imputation_method', 'original_row_index', 'date_c', 'mois', 
+                      'date_num', 'semaine', 'poste', 'heure']
+    
+    for key_path in all_keys:
+        if not any(excluded in key_path for excluded in metadata_fields):
+            path_parts = key_path.split('.')
+            cleaned_parts = [part.strip() for part in path_parts if part.strip()]
+            if cleaned_parts:
+                column_tuple = tuple(cleaned_parts)
+                multiindex_columns.append(column_tuple)
+                column_mapping[key_path] = column_tuple
+    
+    df = pd.DataFrame(columns=pd.MultiIndex.from_tuples(multiindex_columns))
+    
+    for i, doc in enumerate(documents):
+        if i % 1000 == 0:
+            print(f"  > Traitement du document {i}/{len(documents)}")
+        
+        row_data = {}
+        for key_path, column_tuple in column_mapping.items():
+            value = get_nested_value(doc, key_path.split('.'))
+            row_data[column_tuple] = value
+        
+        df = pd.concat([df, pd.DataFrame([row_data])], ignore_index=True)
+    
+    return df
+
+def extract_keys(obj, keys_set, current_path):
+    """Extrait récursivement toutes les clés d'un document MongoDB"""
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            new_path = current_path + [key]
+            path_str = '.'.join(new_path)
+            keys_set.add(path_str)
+            extract_keys(value, keys_set, new_path)
+    elif isinstance(obj, list):
+        for item in obj:
+            extract_keys(item, keys_set, current_path)
+
+def get_nested_value(obj, key_path):
+    """Obtient une valeur imbriquée à partir d'un chemin de clés"""
+    current = obj
+    for key in key_path:
+        if isinstance(current, dict) and key in current:
+            current = current[key]
+        else:
+            return np.nan
+    return current
 
 def normalize_name(name_parts):
     if isinstance(name_parts, str):
@@ -48,9 +219,6 @@ qualitative_cols = [
     ('Valeurs', ' "CIV" si SE suivi CIV> =41,5 et "SP" sinon ', 'Qualité')
 ]
 
-
-# Chargement et nettoyage
-
 def get_data(file_path):
     try:
         print(f"\n--- Lecture du fichier : {file_path} ---")
@@ -67,15 +235,9 @@ def get_data(file_path):
         if len(df) > 4541:
             df = df.iloc[:4541]
         print("  > Dimensions après nettoyage :", df.shape)
-        print("\n les info de df", df.info())
         return df
     except Exception as e:
         return {"error": f"Erreur de lecture du fichier {file_path} : {str(e)}"}
-
-
-
-# Analyse des variables quantitatives
-
 
 def analyze_quantitative(series):
     series = series.dropna()
@@ -84,7 +246,6 @@ def analyze_quantitative(series):
 
     print(f"    - Quantitative : {series.name} (n={len(series)})")
 
-    # Distribution en classes
     bins = np.linspace(series.min(), series.max(), 51)
     bins = np.unique(bins)
     counts = pd.cut(series, bins=bins, include_lowest=True, right=True).value_counts().sort_index()
@@ -101,7 +262,6 @@ def analyze_quantitative(series):
     frequency_polygon = []
     for i in range(len(bins)-1):
         midpoint = (bins[i] + bins[i+1]) / 2
-        # Trouver le count correspondant à cette classe
         count_value = 0
         for j, count_item in enumerate(counts.items()):
             if j == i:
@@ -112,7 +272,6 @@ def analyze_quantitative(series):
             "y": float(count_value)
         })
 
-    # Statistiques
     mode = series.mode().iloc[0] if not series.mode().empty else None
     median = series.median()
     mean = series.mean()
@@ -124,18 +283,13 @@ def analyze_quantitative(series):
     cv = std_dev / mean if mean != 0 else None
     skewness = skew(series)
     kurtosis_val = kurtosis(series)
-    # Calcul de la loi normale pour le graphique
     x_norm = np.linspace(series.min(), series.max(), 100)
     y_norm = norm.pdf(x_norm, mean, std_dev)
     
-    # Ajuster l'échelle pour qu'elle corresponde à l'histogramme
-    # On multiplie par la largeur de bin et le nombre d'observations
-    bin_width = (series.max() - series.min()) / 50  # 50 classes dans l'histogramme
+    bin_width = (series.max() - series.min()) / 50
     y_norm = y_norm * bin_width * len(series)
     
-
     print(f"      Moyenne={mean:.2f}, Médiane={median:.2f}, Écart-type={std_dev:.2f}")
-
 
     return {
         "type": "quantitative",
@@ -160,7 +314,6 @@ def analyze_quantitative(series):
             "coeff_skewness": skewness,
             "kurtosis": kurtosis_val
         },
-
         "chart_data": {
             "histogram": [
                 {"bin": item["classe"], "count": item["effectif"]} 
@@ -185,14 +338,7 @@ def analyze_quantitative(series):
         }
     }
 
-
-# Analyse des variables qualitatives
-
 def analyze_qualitative(series):
-    import io, base64
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-
     series = series.dropna()
     if len(series) == 0:
         return {}
@@ -200,13 +346,10 @@ def analyze_qualitative(series):
     col = series.name
     print(f"    - Qualitative : {col} (n={len(series)})")
 
-    # Table de distribution
     distribution = series.value_counts().reset_index()
     distribution.columns = ["modalite", "effectif"]
 
-    # Print top 3 modalités
     print(f"      Top modalités : {distribution.head(3).to_dict('records')}")
-
 
     return {
         "type": "qualitative",
@@ -219,17 +362,11 @@ def analyze_qualitative(series):
         }
     }
 
-
-
-
-# Étude des relations
-
 def analyze_relations(df):
     relations = {}
     print("\n--- Analyse des relations ---")
     relation_counter = 1
 
-    # --- Two qualitative variables ---
     qual_cols = [c for c in df.columns if df[c].dtype == 'object']
     print(f"  Qualitative variables found: {len(qual_cols)}")
 
@@ -244,7 +381,6 @@ def analyze_relations(df):
                     try:
                         contingency_table = pd.crosstab(df[c1], df[c2])
 
-                        # Graphs
                         img_grouped = io.BytesIO()
                         contingency_table.plot(kind="bar", stacked=False)
                         plt.title(f"Grouped Bar Chart: {c1} vs {c2}")
@@ -275,7 +411,6 @@ def analyze_relations(df):
                     except Exception as e:
                         print(f"    ✗ Error with {c1} vs {c2}: {str(e)}")
 
-    # --- Two quantitative variables ---
     quant_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
     print(f"  Quantitative variables found: {len(quant_cols)}")
 
@@ -330,7 +465,6 @@ def analyze_relations(df):
                         cov = sub_df[target_col].cov(sub_df[other_col])
                         corr, _ = pearsonr(sub_df[target_col], sub_df[other_col])
 
-                        # Linear regression + graph
                         slope, intercept = np.polyfit(sub_df[target_col], sub_df[other_col], 1)
                         img_scatter = io.BytesIO()
                         plt.figure(figsize=(6,4))
@@ -429,45 +563,136 @@ def analyze_relations(df):
     print(f"  Total relations generated: {len(relations)}")
     return relations
 
-# Fonction principale
 
-def analyze_file(file_path, output_folder="stats"):
-    df = get_data(file_path)
+
+def convert_numpy_types(obj):
+    """
+    Recursively converts numpy types and problematic float values 
+    (NaN, Infinity) to JSON-serializable formats.
+    """
+    if isinstance(obj, (np.integer, np.int64)):
+        return int(obj)
+    if isinstance(obj, (np.floating, np.float64, float)):
+        if np.isnan(obj) or np.isinf(obj):
+            return None  # Replace NaN/Infinity with null
+        return float(obj)
+    if isinstance(obj, np.ndarray):
+        return [convert_numpy_types(item) for item in obj.tolist()]
+    if isinstance(obj, dict):
+        return {k: convert_numpy_types(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [convert_numpy_types(item) for item in obj]
+    if pd.isna(obj):
+        return None
+    return obj
+
+def analyze_column(series, col_name):
+    try:
+        numeric_series = pd.to_numeric(series, errors='raise')
+        return analyze_quantitative(numeric_series)
+    except (ValueError, TypeError):
+        return analyze_qualitative(series)
+
+def analyze_file_from_mongodb(line, output_folder="src/utils/stats"):
+    """Analyse les données depuis MongoDB pour une ligne spécifique"""
+    print(f"\n{'='*60}")
+    print(f"📊 DÉBUT DE L'ANALYSE POUR LA LIGNE {line}")
+    print(f"{'='*60}")
+    
+    df = get_data_from_mongodb(line)
+    
     if isinstance(df, dict) and "error" in df:
+        print(f"❌ Erreur: {df['error']}")
         return df
+    
+    if df.empty:
+        return {"error": "DataFrame vide après récupération depuis MongoDB"}
 
-    results = {"Fichier": file_path, "Variables": {}, "Relations": {}}
-    print("\n--- Analyse des variables ---")
+    columns_to_exclude = [
+        'source_line', 'heure', 'semaine', 'date_c', 'mois', 'date_num',
+        'imputation_method', 'poste', '107 D.Mois', '107 D.Date', 
+        '107 D.Semaine', '107 D.Poste', '107 D.Heure', '__v', 'createdAt',
+        'import_date', 'original_filenames.file1', 'original_filenames.file2',
+        'original_row_index', 'updatedAt'
+    ]
+    
+    df_filtered = df.drop(columns=columns_to_exclude, errors='ignore')
+    
+    print(f"✅ {len(columns_to_exclude)} colonnes spécifiées pour exclusion.")
+    print(f"📋 Dimensions du DataFrame après exclusion : {df_filtered.shape}")
 
-    for col in df.columns:
-        if pd.api.types.is_numeric_dtype(df[col]):
-            results["Variables"][col] = analyze_quantitative(df[col])
-        else:
-            results["Variables"][col] = analyze_qualitative(df[col])
-
-    results["Relations"] = analyze_relations(df)
+    results = {
+        "Ligne": line, 
+        "Variables": {}, 
+        "Relations": {}
+    }
+    
+    print(f"\n--- Analyse des variables restantes ({len(df_filtered.columns)} colonnes) ---")
+    
+    for i, col in enumerate(df_filtered.columns):
+        print(f"  [{i+1}/{len(df_filtered.columns)}] Analyse de: {col}")
+        results["Variables"][col] = analyze_column(df_filtered[col], col)
+    
+    results["Relations"] = analyze_relations(df_filtered)
+    
+    results = convert_numpy_types(results)
+    
     os.makedirs(output_folder, exist_ok=True)
-    base_name = os.path.splitext(os.path.basename(file_path))[0]
-    output_file_name = f"{base_name}_stats.json"
+    output_file_name = f"Fusion_107{line}_KPIs nettoyé_4fill_stats.json"
     output_path = os.path.join(output_folder, output_file_name)
-
+    
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=4)
+    
+    print(f"\n✅✅✅ RÉSULTATS SAUVEGARDÉS DANS {output_path} ✅✅✅")
+    
+    return {"success": True, "file_path": output_path}
 
-    print(f"\n>>> Résultats sauvegardés dans {output_path}\n")
-    return {"message": f"Analyse sauvegardée dans {output_path}"}
+# Fonction principale pour analyser les 3 lignes
+def analyze_all_lines():
+    """Analyse les 3 lignes (107D, 107E, 107F) et génère 3 fichiers JSON"""
+    lines = ['107D', '107E', '107F']
+    results = {}
+    
+    for line in lines:
+        print(f"\n{'='*80}")
+        print(f"LANCEMENT DE L'ANALYSE POUR LA LIGNE: {line}")
+        print(f"{'='*80}")
+        
+        result = analyze_file_from_mongodb(line)
+        results[line] = result
+        
+        print(f"\n⏳ Attente de 2 secondes avant la prochaine ligne...")
+        import time
+        time.sleep(2)  # Pause pour éviter la surcharge
+    
+    print(f"\n🎉 ANALYSE TERMINÉE POUR TOUTES LES LIGNES!")
+    print(f"📁 Fichiers générés:")
+    for line, result in results.items():
+        if result.get('success'):
+            print(f"   • {line}: {result['file_path']}")
+        else:
+            print(f"   • {line}: ERREUR - {result.get('error', 'Unknown error')}")
+    
+    return results
 
 
-# Lancer sur tes 3 fichiers avec les chemins locaux
 
 if __name__ == "__main__":
-    files = [
-    r"C:\Users\user\stage pfa\backend\src\data\ligne D\Fusion_107D_KPIs nettoyé_4fill.xlsx",
-    r"C:\Users\user\stage pfa\backend\src\data\ligne E\Fusion_107E_KPIs nettoyé_4fill.xlsx",
-    r"C:\Users\user\stage pfa\backend\src\data\ligne F\Fusion_107F_KPIs nettoyé_4fill.xlsx"
-    ]
+    import sys
+    if len(sys.argv) > 1:
+        line_to_analyze = sys.argv[1]
+        print(f"Argument détecté. Lancement de l'analyse pour la ligne unique : {line_to_analyze}")
+        analyze_file_from_mongodb(line_to_analyze)
+    else:
+        print("ℹ️ Aucun argument détecté. Lancement de l'analyse pour toutes les lignes (D, E, F).")
+        analyze_all_lines()
 
-    output_folder = "stats"
 
-    for f in files:
-        print(analyze_file(f, output_folder))
+    print("\n Test de connexion à MongoDB...")
+    client = get_mongodb_connection()
+    if client:
+        db = client['107_DEF_KPI_dashboard']
+        collections = db.list_collection_names()
+        print(f" Collections disponibles: {collections}")
+        client.close()

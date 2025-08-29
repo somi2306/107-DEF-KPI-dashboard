@@ -36,7 +36,27 @@ build/
 *.log
 npm-debug.log*
 
+# Python
+__pycache__/
+*.pyc
+
+backend/src/utils/__pycache__/
+backend/src/utils/regression_models/__pycache__/
+
 # Dossiers de données
-/backend/src/data/
-/backend/src/utils/stats/
-/backend/upload/
+# Ignorer le contenu mais pas les dossiers
+/backend/src/data/*
+!/backend/src/data/.gitkeep
+
+/backend/src/utils/stats/*
+!/backend/src/utils/stats/.gitkeep
+
+/backend/stats/*
+!/backend/stats/.gitkeep
+
+/backend/src/uploads/*
+!/backend/src/uploads/.gitkeep
+
+/backend/src/utils/models/*
+!/backend/src/utils/models/.gitkeep
+

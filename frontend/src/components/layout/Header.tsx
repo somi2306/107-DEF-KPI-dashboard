@@ -1,5 +1,7 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
+// 1. Importer le hook que nous avons créé
+import { useAnalysis } from '../../providers/AnalysisProvider';
 
 type HeaderProps = {
   activePage: string;
@@ -7,14 +9,20 @@ type HeaderProps = {
 };
 
 export const Header: React.FC<HeaderProps> = ({ activePage, setActivePage }) => {
-  const NavLink = ({ pageName, children }: { pageName: string; children: React.ReactNode }) => (
+  // 2. Récupérer l'état de l'analyse
+  const { isAnalysisRunning } = useAnalysis();
+
+  const NavLink = ({ pageName, children, disabled = false }: { pageName: string; children: React.ReactNode; disabled?: boolean }) => (
     <button
       onClick={() => setActivePage(pageName)}
+      disabled={disabled}
       className={cn(
         "px-3 py-2 rounded-md text-sm font-medium transition-colors",
         activePage === pageName
           ? "bg-slate-900 text-white"
-          : "text-slate-600 hover:bg-slate-100"
+          : disabled
+            ? "text-slate-400 cursor-not-allowed" // Style pour le bouton désactivé
+            : "text-slate-600 hover:bg-slate-100"
       )}
     >
       {children}
@@ -31,7 +39,12 @@ export const Header: React.FC<HeaderProps> = ({ activePage, setActivePage }) => 
           <div className="flex items-center space-x-4">
             <NavLink pageName="prediction">Prédiction</NavLink>
             <NavLink pageName="metrics">Métrique de Performance</NavLink>
-            <NavLink pageName="statistics">Statistiques</NavLink>
+            
+            {/* 3. Passer la propriété 'disabled' au NavLink de la page Statistiques */}
+            <NavLink pageName="statistics" disabled={isAnalysisRunning}>
+              Statistiques
+            </NavLink>
+            
             <NavLink pageName="nettoyage">Fusion</NavLink> 
           </div>
         </div>

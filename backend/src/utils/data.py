@@ -10,7 +10,7 @@ MONGO_URI = os.getenv("MONGODB_URI")
 if not MONGO_URI:
     raise ValueError("MONGODB_URI not found in environment variables. Please check your .env file.")
 
-DB_NAME = "stage_pfa"
+DB_NAME = "107_DEF_KPI_dashboard"
 script_dir = os.path.dirname(os.path.abspath(__file__))
 data_base_dir = os.path.join(script_dir, '..', 'data')
 
@@ -19,19 +19,22 @@ lines_to_import = {
         "Fusion_107F_KPIs_mean.xlsx",
         "Fusion_107F_KPIs_median.xlsx",
         "Fusion_107F_KPIs_mode.xlsx",
-        "Fusion_107F_KPIs_ffill.xlsx"
+        "Fusion_107F_KPIs_ffill.xlsx",
+        "Fusion_107F_KPIs nettoyé_4fill.xlsx"
     ],
     "E": [
         "Fusion_107E_KPIs_mean.xlsx",
         "Fusion_107E_KPIs_median.xlsx",
         "Fusion_107E_KPIs_mode.xlsx",
-        "Fusion_107E_KPIs_ffill.xlsx"
+        "Fusion_107E_KPIs_ffill.xlsx",
+        "Fusion_107E_KPIs nettoyé_4fill.xlsx"
     ],
     "D": [
         "Fusion_107D_KPIs_mean.xlsx",
         "Fusion_107D_KPIs_median.xlsx",
         "Fusion_107D_KPIs_mode.xlsx",
-        "Fusion_107D_KPIs_ffill.xlsx"
+        "Fusion_107D_KPIs_ffill.xlsx",
+        "Fusion_107D_KPIs nettoyé_4fill.xlsx"
     ]
 }
 

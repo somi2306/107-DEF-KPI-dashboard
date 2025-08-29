@@ -18,11 +18,14 @@ import { FeatureImportanceChart } from '../components/shared/FeatureImportanceCh
 import { InteractiveNormalDistribution } from '../components/shared/InteractiveNormalDistribution';
 import { InteractiveFrequencyPolygon } from '../components/shared/InteractiveFrequencyPolygon';
 import { InteractiveScatterPlotPlotly } from '../components/shared/InteractiveScatterPlotPlotly';
-
+import { useAnalysis } from '../providers/AnalysisProvider';
+import { Loader } from 'lucide-react';
 // Types pour les sélections d'analyse
 type AnalysisType = 'descriptive' | 'relations';
 type DescriptiveSubType = 'quantitative' | 'qualitative';
 type RelationsSubType = 'qualitative_qualitative' | 'quantitative_qualitative' | 'quantitative_quantitative';
+
+
 
 export const StatisticsPage: React.FC = () => {
   const { line, setLine } = useModelSelector();
@@ -55,6 +58,7 @@ export const StatisticsPage: React.FC = () => {
   const [isTargetFocused, setIsTargetFocused] = useState(false);
   const [isOtherFocused, setIsOtherFocused] = useState(false);
 
+  const { isAnalysisRunning } = useAnalysis();
 
   const normalizeName = (nameParts: string | string[]): string => {
     if (typeof nameParts === 'string') {
@@ -134,9 +138,9 @@ const targetVarsList = [
   };
 
   const handleInputBlur = (e: React.FocusEvent) => {
-    // Retarde la fermeture pour permettre le clic sur un élément
     setTimeout(() => {
-      if (!e.currentTarget.contains(document.activeElement)) {
+      // Add this check
+      if (e.currentTarget && !e.currentTarget.contains(document.activeElement)) {
         setIsFocused(false);
       }
     }, 100);
@@ -148,7 +152,8 @@ const targetVarsList = [
 
   const handleTargetInputBlur = (e: React.FocusEvent) => {
     setTimeout(() => {
-      if (!e.currentTarget.contains(document.activeElement)) {
+      // Add this check
+      if (e.currentTarget && !e.currentTarget.contains(document.activeElement)) {
         setIsTargetFocused(false);
       }
     }, 100);
@@ -168,7 +173,8 @@ const targetVarsList = [
 
   const handleOtherInputBlur = (e: React.FocusEvent) => {
     setTimeout(() => {
-      if (!e.currentTarget.contains(document.activeElement)) {
+      // Add this check
+      if (e.currentTarget && !e.currentTarget.contains(document.activeElement)) {
         setIsOtherFocused(false);
       }
     }, 100);
@@ -774,17 +780,21 @@ const targetVarsList = [
   const qualitativeVars = stats ? Object.entries(stats.Variables).filter(([_, data]) => isQualitative(data)) : [];
   const relationsData = filteredRelations();
   const hasRelations = relationsData && Object.keys(relationsData).length > 0;
-  const availableCorrelationVars = useMemo(() => {
+const availableCorrelationVars = useMemo(() => {
     const targetVarFullNames = new Set(normalizedTargetVars);
 
     if (!variableNames.quantitative || !targetRelationVariable) return {};
     const filtered: { [key: string]: { fullName: string, parts: string[] }[] } = {};
 
     Object.entries(variableNames.quantitative).forEach(([groupName, groupVariables]) => {
-      const filteredGroup = groupVariables.filter(v => 
-        v.fullName !== targetRelationVariable && 
-        !targetVarFullNames.has(v.fullName)
-      );
+      const filteredGroup = groupVariables.filter(v => {
+        // Normalize the variable name coming from the backend before comparison
+        const normalizedName = normalizeName(v.fullName.split('.'));
+        
+        // Now, compare the normalized name against the already normalized target variables
+        return normalizedName !== targetRelationVariable && 
+               !targetVarFullNames.has(normalizedName);
+      });
 
       if (filteredGroup.length > 0) {
         filtered[groupName] = filteredGroup;

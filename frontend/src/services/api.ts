@@ -26,91 +26,100 @@ export type ProcessFusionResponse = {
   error?: string;
 };
 
+
+
 export const api = {
+
   getModelFeatures: async (line: string): Promise<string[]> => {
-    const response = await axios.post(`${API_BASE_URL}/features`, { line: line });
+    const response = await axios.post(`${API_BASE_URL}/predictions/features`, { line: line });
     if (response.data.error) throw new Error(response.data.error);
     return response.data.features;
   },
 
   getPrediction: async (modelName: string, features: { [key: string]: number }): Promise<number> => {
-    const response = await axios.post(`${API_BASE_URL}/predict`, { model_name: modelName, features });
+    const response = await axios.post(`${API_BASE_URL}/predictions/predict`, { model_name: modelName, features });
     if (response.data.error) throw new Error(response.data.error);
     return response.data.prediction;
   },
 
   getModelMetrics: async (modelName: string): Promise<ModelMetrics> => {
-    const response = await axios.post(`${API_BASE_URL}/metrics`, { model_name: modelName });
+    const response = await axios.post(`${API_BASE_URL}/predictions/metrics`, { model_name: modelName });
     if (response.data.error) throw new Error(response.data.error);
     return response.data;
   },
   
   getModelEquation: async (modelName: string): Promise<EquationData> => {
-    const response = await axios.post(`${API_BASE_URL}/equation`, { model_name: modelName });
+    const response = await axios.post(`${API_BASE_URL}/predictions/equation`, { model_name: modelName });
     if (response.data.error) throw new Error(response.data.error);
     return response.data;
   },
 
   getVisualization: async (modelType: string, line: string, imputation: string): Promise<Blob> => {
-    const response = await axios.get(`${API_BASE_URL}/visualize`, {
-      params: {
-        model: modelType,
-        ligne: line,
-        imputation: imputation
-      },
+    const response = await axios.get(`${API_BASE_URL}/predictions/visualize`, {
+      params: { model: modelType, ligne: line, imputation: imputation },
       responseType: 'blob' 
     });
     return response.data;
   },
-      getTreeData: async (modelType: string, line: string, targetName: string): Promise<any> => {
-        const response = await axios.get(`${API_BASE_URL}/tree-data`, {
-            params: { model: modelType, ligne: line, imputation: targetName }
-        });
-        return response.data;
-    },
-        getTreeShape: async (modelType: string, line: string, targetName: string): Promise<TreeShape> => {
-        const response = await axios.get(`${API_BASE_URL}/tree-shape`, {
-            params: { model: modelType, ligne: line, imputation: targetName }
-        });
-        return response.data;
-    },
+
+  getTreeData: async (modelType: string, line: string, targetName: string): Promise<any> => {
+    const response = await axios.get(`${API_BASE_URL}/predictions/tree-data`, {
+        params: { model: modelType, ligne: line, imputation: targetName }
+    });
+    return response.data;
+  },
+  
+  getTreeShape: async (modelType: string, line: string, targetName: string): Promise<TreeShape> => {
+    const response = await axios.get(`${API_BASE_URL}/predictions/tree-shape`, {
+        params: { model: modelType, ligne: line, imputation: targetName }
+    });
+    return response.data;
+  },
+
   getAllTreeData: async (modelType: string, line: string, targetName: string): Promise<AllTreesData> => {
-    const response = await axios.get(`${API_BASE_URL}/all-trees-data`, {
+    const response = await axios.get(`${API_BASE_URL}/predictions/all-trees-data`, {
         params: { modelName: modelType, ligne: line, targetName: targetName }
     });
     if (response.data.error) throw new Error(response.data.error);
     return response.data;
   },
-    getLearningCurveData: async (modelType: string, line: string, targetName: string): Promise<LearningCurveData> => {
-    const response = await axios.get(`${API_BASE_URL}/learning-curve`, {
+
+  getLearningCurveData: async (modelType: string, line: string, targetName: string): Promise<LearningCurveData> => {
+    const response = await axios.get(`${API_BASE_URL}/predictions/learning-curve`, {
         params: { modelName: modelType, ligne: line, targetName: targetName }
     });
     if (response.data.error) throw new Error(response.data.error);
     return response.data;
   },
-    getPredictionPlotData: async (modelName: string): Promise<PredictionPlotData> => {
-    const response = await axios.get(`${API_BASE_URL}/prediction-plot`, {
+
+  getPredictionPlotData: async (modelName: string): Promise<PredictionPlotData> => {
+    const response = await axios.get(`${API_BASE_URL}/predictions/prediction-plot`, {
         params: { modelName: modelName }
     });
     if (response.data.error) throw new Error(response.data.error);
     return response.data;
   },
-    getStatistics: async (line: string): Promise<StatisticsResponse> => {
-        const response = await axios.get(`${API_BASE_URL}/stats/analyze/${line}`);
-        if (response.data.error) throw new Error(response.data.error);
-        return response.data;
-    },
 
-getVariableNames: async (line: string): Promise<{quantitative: string[], qualitative: string[]}> => {
-    const response = await axios.get(`${API_BASE_URL}/stats/variable-names/${line}`);
+  getStatistics: async (line: string): Promise<StatisticsResponse> => {
+      const response = await axios.get(`${API_BASE_URL}/stats/analyze/${line}`);
+      if (response.data.error) throw new Error(response.data.error);
+      return response.data;
+  },
+  getVariableNames: async (line: string): Promise<{quantitative: string[], qualitative: string[]}> => {
+      const response = await axios.get(`${API_BASE_URL}/stats/variable-names/${line}`);
+      if (response.data.error) throw new Error(response.data.error);
+      return response.data;
+  },
+  getRelationStatistics: async (line: string, var1: string, var2: string): Promise<StatisticsResponse> => {
+    const response = await axios.get(`${API_BASE_URL}/stats/relations/${line}/${encodeURIComponent(var1)}/${encodeURIComponent(var2)}`);
     if (response.data.error) throw new Error(response.data.error);
     return response.data;
-},
-getRelationStatistics: async (line: string, var1: string, var2: string): Promise<StatisticsResponse> => {
-  const response = await axios.get(`${API_BASE_URL}/stats/relations/${line}/${encodeURIComponent(var1)}/${encodeURIComponent(var2)}`);
-  if (response.data.error) throw new Error(response.data.error);
-  return response.data;
-},
+  },
+  generateStatistics: async (line: string): Promise<any> => {
+    const response = await axios.post(`${API_BASE_URL}/stats/generate/${line}`);
+    if (response.data.error) throw new Error(response.data.error);
+    return response.data;
+  },
 };
 
 export const getRelations = async (line: string, var1: string, var2: string) => {
@@ -190,3 +199,32 @@ export const startFillingProcess = async (): Promise<any> => {
     throw error;
   }
 };
+
+export const runFullPipelineInMemory = async (files: { [key: string]: File | null }): Promise<any> => {
+  const formData = new FormData();
+
+  Object.keys(files).forEach(key => {
+    if (files[key]) {
+      formData.append(key, files[key] as File);
+    }
+  });
+
+  try {
+    const response = await axios.post(`${API_BASE_URL}/pipeline/run-in-memory`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(error.response.data.message || 'Erreur du serveur lors du lancement du pipeline.');
+    }
+    throw new Error('Erreur de communication avec le serveur.');
+  }
+};
+
+
+
+
+

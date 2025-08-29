@@ -1,7 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-
+import { spawn } from 'child_process';
+import { getIo, setAnalysisStatus, analysisStatus } from '../index.js';
 // Pour __dirname en ES module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -9,9 +10,83 @@ const __dirname = path.dirname(__filename);
 // Chemin vers le dossier contenant les stats JSON
 const statsPath = path.join(__dirname, '..', 'utils', 'stats');
 
-/**
- * Controller pour récupérer les stats descriptives d'une ligne
- */
+export const generateStatisticsFromMongoDB = (req, res) => {
+    if (analysisStatus === 'running') {
+        return res.status(409).json({ 
+            error: "Une analyse est déjà en cours.",
+            details: "Veuillez attendre la fin de l'analyse actuelle avant d'en lancer une nouvelle."
+        });
+    }
+
+    const { line } = req.params;
+    const io = getIo(); // Récupérer l'instance de socket.io
+
+    // --- MISE À JOUR ET DIFFUSION DU STATUT 'RUNNING' ---
+    setAnalysisStatus('running');
+    io.emit('analysis-status-update', 'running'); // Diffuse à tous les clients
+    
+    console.log(`Statut passé à 'running'. Lancement de l'analyse pour la ligne ${line}...`);
+    
+    const pythonProcess = spawn('python', ['src/utils/statistics_analyzer.py', line]);
+    
+    let scriptOutput = '';
+    let scriptError = '';
+    
+    pythonProcess.stdout.on('data', (data) => { 
+        scriptOutput += data.toString();
+        console.log(`Python stdout: ${data.toString()}`);
+    });
+    
+    pythonProcess.stderr.on('data', (data) => { 
+        scriptError += data.toString();
+        console.error(`Python stderr: ${data.toString()}`);
+    });
+    
+    pythonProcess.on('close', (code) => {
+        setAnalysisStatus('idle');
+        io.emit('analysis-status-update', 'idle'); // Diffuse la fin à tous les clients
+        console.log("Statut repassé à 'idle'.");
+        if (code === 0) {
+            const fileName = `Fusion_107${line}_KPIs nettoyé_4fill_stats.json`;
+            const filePath = path.join(statsPath, fileName);
+            fs.readFile(filePath, 'utf8', (err, data) => {
+                if (err) {
+                    return res.status(500).json({
+                        error: `Impossible de lire le fichier de stats pour la ligne ${line}`,
+                        details: err.message
+                    });
+                }
+                
+                try {
+                    const cleanData = data
+                        .replace(/\bNaN\b/g, 'null')
+                        .replace(/\bInfinity\b/g, 'null')
+                        .replace(/\b-Infinity\b/g, 'null');
+                    
+                    const jsonData = JSON.parse(cleanData);
+                    res.json({
+                        status: 'success',
+                        message: `Statistiques générées pour la ligne ${line}`,
+                        data: jsonData
+                    });
+                } catch (e) {
+                    res.status(500).json({
+                        error: "Erreur de parsing du fichier JSON.",
+                        details: e.message
+                    });
+                }
+            });
+        } else {
+            res.status(500).json({
+                error: "Erreur lors de l'exécution du script Python",
+                details: scriptError || scriptOutput,
+                code: code
+            });
+        }
+    });
+};
+
+
 export const getDescriptiveStatistics = (req, res) => {
     const { line } = req.params;
     const fileName = `Fusion_107${line}_KPIs nettoyé_4fill_stats.json`;
@@ -57,7 +132,12 @@ export const getVariableNames = (req, res) => {
     const { line } = req.params;
     const fileName = `Fusion_107${line}_KPIs nettoyé_4fill_stats.json`;
     const filePath = path.join(statsPath, fileName);
-
+    if (!fs.existsSync(filePath)) {
+        return res.status(404).json({
+            error: `Le fichier de statistiques pour la ligne ${line} n'a pas encore été généré.`,
+            details: `Veuillez lancer l'analyse depuis la page de Fusion.`
+        });
+    }
     fs.readFile(filePath, 'utf8', (err, data) => {
         if (err) {
             console.error(`Erreur lecture JSON: ${err}`);
@@ -66,7 +146,6 @@ export const getVariableNames = (req, res) => {
                 details: err.message
             });
         }
-
         try {
             const cleanData = data
                 .replace(/\bNaN\b/g, 'null')
@@ -75,7 +154,6 @@ export const getVariableNames = (req, res) => {
 
             const jsonData = JSON.parse(cleanData);
             
-            // Extraire les noms des variables quantitatives et qualitatives
             const quantitative = [];
             const qualitative = [];
             
@@ -123,7 +201,6 @@ export const getRelationStatistics = (req, res) => {
             let relations = {};
 
             if (jsonData.Relations) {
-                // Chercher la relation spécifique
                 const relationKey = Object.keys(jsonData.Relations).find(key => {
                     const relation = jsonData.Relations[key];
                     return (relation.variables.includes(var1) && relation.variables.includes(var2));
