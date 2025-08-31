@@ -6,9 +6,9 @@ import mongoose from "mongoose";
 export const connectDB = async () => {
   try {
     const conn = await mongoose.connect(process.env.MONGODB_URI);
-    console.log(`Connected to MongoDB ${conn.connection.host}`); // conn.connection.host te donne le nom de l'hôte Mongo (ex: localhost ou cluster)
+    console.log(`Connected to Azure MongoDB ${conn.connection.host}`); // conn.connection.host te donne le nom de l'hôte Mongo (ex: localhost ou cluster)
   } catch (error) {
-    console.log(`Failed to connect to MongoDB`, error);
+    console.log(`Failed to connect to Azure MongoDB`, error);
     process.exit(1); // arrête le programme si la connexion échoue, le @ est pour le succès
   }
 };

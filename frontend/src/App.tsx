@@ -7,20 +7,23 @@ import './App.css';
 import { StatisticsPage } from './pages/StatisticsPage';
 import FusionPage from './pages/FusionPage';
 
-// fournisseur 
+// Importez le NotificationProvider
 import { AnalysisProvider } from './providers/AnalysisProvider';
+import { NotificationProvider } from './providers/NotificationProvider'; // ← Ajoutez cette ligne
 
 const App: React.FC = () => {
   const [activePage, setActivePage] = useState('prediction');
 
   return (
     <AnalysisProvider>
-      <MainLayout activePage={activePage} setActivePage={setActivePage}>
-        {activePage === 'prediction' && <PredictionPage />}
-        {activePage === 'metrics' && <MetricsPage />}
-        {activePage === 'statistics' && <StatisticsPage />}
-        {activePage === 'nettoyage' && <FusionPage />}
-      </MainLayout>
+      <NotificationProvider> {/* ← Enveloppez avec NotificationProvider */}
+        <MainLayout activePage={activePage} setActivePage={setActivePage}>
+          {activePage === 'prediction' && <PredictionPage />}
+          {activePage === 'metrics' && <MetricsPage />}
+          {activePage === 'statistics' && <StatisticsPage />}
+          {activePage === 'nettoyage' && <FusionPage />}
+        </MainLayout>
+      </NotificationProvider> {/* ← Fermez NotificationProvider */}
     </AnalysisProvider>
   );
 };

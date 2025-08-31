@@ -1,223 +1,266 @@
-import fs from 'fs';
+import { spawn } from 'child_process';
+import fs from 'fs'; // Ajouter cette importation
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { spawn } from 'child_process';
+// Modifiez l'import en haut du fichier
+import { 
+  StatisticsResult, 
+  StatisticsVariable, 
+  StatisticsRelation 
+} from '../models/StatisticsResult.js';
+import { createNotification } from './notificationController.js';
 import { getIo, setAnalysisStatus, analysisStatus } from '../index.js';
 // Pour __dirname en ES module
+
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Chemin vers le dossier contenant les stats JSON
-const statsPath = path.join(__dirname, '..', 'utils', 'stats');
+/**
+ * Récupère le document complet des statistiques pour une ligne donnée.
+ */
+export const getStatistics = async (req, res) => {
+  const { line } = req.params;
+  const fullLine = `107${line.toUpperCase()}`;
 
-export const generateStatisticsFromMongoDB = (req, res) => {
-    if (analysisStatus === 'running') {
-        return res.status(409).json({ 
-            error: "Une analyse est déjà en cours.",
-            details: "Veuillez attendre la fin de l'analyse actuelle avant d'en lancer une nouvelle."
-        });
+  try {
+    // 1. Récupérer les métadonnées (ce qui fonctionnait déjà)
+    const mainStats = await StatisticsResult.findOne({ Ligne: fullLine });
+    
+    if (!mainStats) {
+      const message = `Les données statistiques pour la ligne ${fullLine} n'ont pas encore été générées.`;
+      return res.status(404).json({ error: message });
     }
 
-    const { line } = req.params;
-    const io = getIo(); // Récupérer l'instance de socket.io
+    // 2. Récupérer toutes les variables pour cette ligne
+    const variables = await StatisticsVariable.find({ line: fullLine }).lean();
+    const variablesObj = {};
+    variables.forEach(v => {
+      // Nettoyage pour ne garder que les données pertinentes
+      const { _id, line, variable_name, __v, ...variableData } = v;
+      variablesObj[variable_name] = variableData;
+    });
 
-    // --- MISE À JOUR ET DIFFUSION DU STATUT 'RUNNING' ---
-    setAnalysisStatus('running');
-    io.emit('analysis-status-update', 'running'); // Diffuse à tous les clients
-    
-    console.log(`Statut passé à 'running'. Lancement de l'analyse pour la ligne ${line}...`);
-    
-    const pythonProcess = spawn('python', ['src/utils/statistics_analyzer.py', line]);
-    
+    // 3. CORRECTION : Récupérer toutes les relations pour cette ligne
+    const relations = await StatisticsRelation.find({ line: fullLine }).lean();
+    const relationsObj = {};
+    relations.forEach(r => {
+      relationsObj[r.relation_key] = {
+        variables: r.variables,
+        type: r.type,
+        ...r.data,
+        chart_data: r.chart_data
+      };
+    });
+
+    // 4. Assembler la réponse finale complète
+    const completeStats = {
+      Ligne: fullLine,
+      Variables: variablesObj,
+      Relations: relationsObj,
+      metadata: mainStats.metadata
+    };
+
+    res.status(200).json(completeStats);
+
+  } catch (error) {
+    console.error(`Erreur lors de la récupération des statistiques pour la ligne ${fullLine}:`, error);
+    res.status(500).json({ error: 'Erreur serveur lors de la récupération des statistiques.' });
+  }
+};
+
+/**
+ * Lance le script Python pour générer les statistiques.
+ * Le script se charge lui-même de sauvegarder les résultats dans la base de données.
+ */
+// Modifiez la fonction generateStatistics
+export const generateStatisticsFromMongoDB = async (req, res) => {
+  const { line } = req.params;
+  const io = getIo();
+  
+  // Vérifier si une analyse est déjà en cours
+  if (analysisStatus === 'running') {
+    return res.status(409).json({ 
+      error: "Une analyse est déjà en cours.",
+      details: "Veuillez attendre la fin de l'analyse actuelle avant d'en lancer une nouvelle."
+    });
+  }
+
+  // Mettre à jour le statut global ET émettre l'événement
+  setAnalysisStatus('running');
+  io.emit('analysis-status-update', 'running');
+  
+  const lineLetter = line.replace('107', '').toUpperCase();
+  
+  // Répondre immédiatement pour ne pas bloquer le client
+  res.status(202).json({ 
+    message: `L'analyse pour la ligne ${lineLetter} a été acceptée et démarrée.`,
+    status: 'running'
+  });
+
+  // Créer la notification de début
+  createNotification({
+    message: `L'analyse statistique pour la ligne ${lineLetter} a commencé.`,
+    status: 'in-progress'
+  });
+
+  try {
+    const pythonProcess = spawn('python', ['src/utils/statistics_analyzer.py', lineLetter]);
+
     let scriptOutput = '';
     let scriptError = '';
-    
-    pythonProcess.stdout.on('data', (data) => { 
-        scriptOutput += data.toString();
-        console.log(`Python stdout: ${data.toString()}`);
+
+    pythonProcess.stdout.on('data', (data) => {
+      scriptOutput += data.toString();
+      console.log(`[Python stdout - Ligne ${lineLetter}]: ${data.toString()}`);
     });
-    
-    pythonProcess.stderr.on('data', (data) => { 
-        scriptError += data.toString();
-        console.error(`Python stderr: ${data.toString()}`);
+
+    pythonProcess.stderr.on('data', (data) => {
+      scriptError += data.toString();
+      console.error(`[Python stderr - Ligne ${lineLetter}]: ${data.toString()}`);
     });
-    
-    pythonProcess.on('close', (code) => {
-        setAnalysisStatus('idle');
-        io.emit('analysis-status-update', 'idle'); // Diffuse la fin à tous les clients
-        console.log("Statut repassé à 'idle'.");
-        if (code === 0) {
-            const fileName = `Fusion_107${line}_KPIs nettoyé_4fill_stats.json`;
-            const filePath = path.join(statsPath, fileName);
-            fs.readFile(filePath, 'utf8', (err, data) => {
-                if (err) {
-                    return res.status(500).json({
-                        error: `Impossible de lire le fichier de stats pour la ligne ${line}`,
-                        details: err.message
-                    });
-                }
-                
-                try {
-                    const cleanData = data
-                        .replace(/\bNaN\b/g, 'null')
-                        .replace(/\bInfinity\b/g, 'null')
-                        .replace(/\b-Infinity\b/g, 'null');
-                    
-                    const jsonData = JSON.parse(cleanData);
-                    res.json({
-                        status: 'success',
-                        message: `Statistiques générées pour la ligne ${line}`,
-                        data: jsonData
-                    });
-                } catch (e) {
-                    res.status(500).json({
-                        error: "Erreur de parsing du fichier JSON.",
-                        details: e.message
-                    });
-                }
-            });
-        } else {
-            res.status(500).json({
-                error: "Erreur lors de l'exécution du script Python",
-                details: scriptError || scriptOutput,
-                code: code
-            });
-        }
-    });
-};
 
-
-export const getDescriptiveStatistics = (req, res) => {
-    const { line } = req.params;
-    const fileName = `Fusion_107${line}_KPIs nettoyé_4fill_stats.json`;
-    const filePath = path.join(statsPath, fileName);
-
-    fs.readFile(filePath, 'utf8', (err, data) => {
-        if (err) {
-            console.error(`Erreur lecture JSON: ${err}`);
-            return res.status(500).json({
-                error: `Impossible de lire le fichier pour la ligne ${line}`,
-                details: err.message
-            });
-        }
-
+    pythonProcess.on('close', async (code) => {
+      console.log(`📝 Script Python terminé avec code: ${code}`);
+      
+      // Mettre à jour le statut global ET émettre l'événement
+      setAnalysisStatus('idle');
+      io.emit('analysis-status-update', 'idle');
+      
+      if (code === 0) {
+        console.log(`✅ Analyse statistique pour la ligne ${lineLetter} terminée avec succès.`);
+        
+        // Vérifier que les données ont bien été sauvegardées dans MongoDB
         try {
-            const cleanData = data
-                .replace(/\bNaN\b/g, 'null')
-                .replace(/\bInfinity\b/g, 'null')
-                .replace(/\b-Infinity\b/g, 'null');
-
-            const jsonData = JSON.parse(cleanData);
-            
-            // Log pour déboguer
-            console.log(`Fichier chargé: ${fileName}`);
-            console.log(`Nombre de relations: ${jsonData.Relations ? Object.keys(jsonData.Relations).length : 0}`);
-            if (jsonData.Relations) {
-                console.log('Clés des relations:', Object.keys(jsonData.Relations));
-            }
-            
-            res.json(jsonData);
-        } catch (e) {
-            console.error(`Erreur parsing JSON: ${e}`);
-            res.status(500).json({
-                error: "Erreur de parsing du fichier JSON.",
-                details: e.message
+          const fullLine = `107${lineLetter}`;
+          const statsExist = await StatisticsResult.findOne({ Ligne: fullLine });
+          
+          if (statsExist) {
+            createNotification({
+              message: `L'analyse statistique pour la ligne ${lineLetter} est terminée avec succès.`,
+              status: 'completed'
             });
+          } else {
+            throw new Error('Aucune donnée trouvée dans MongoDB après exécution du script');
+          }
+        } catch (dbError) {
+          console.error('❌ Erreur de vérification MongoDB:', dbError);
+          createNotification({
+            message: `L'analyse pour la ligne ${lineLetter} a terminé mais les données n'ont pas été sauvegardées correctement.`,
+            status: 'failed'
+          });
         }
-    });
-};
-
-
-export const getVariableNames = (req, res) => {
-    const { line } = req.params;
-    const fileName = `Fusion_107${line}_KPIs nettoyé_4fill_stats.json`;
-    const filePath = path.join(statsPath, fileName);
-    if (!fs.existsSync(filePath)) {
-        return res.status(404).json({
-            error: `Le fichier de statistiques pour la ligne ${line} n'a pas encore été généré.`,
-            details: `Veuillez lancer l'analyse depuis la page de Fusion.`
+      } else {
+        console.error(`❌ Script d'analyse pour la ligne ${lineLetter} terminé avec le code ${code}.`);
+        createNotification({
+          message: `L'analyse statistique pour la ligne ${lineLetter} a échoué (code: ${code}).`,
+          status: 'failed',
+          details: scriptError || scriptOutput
         });
-    }
-    fs.readFile(filePath, 'utf8', (err, data) => {
-        if (err) {
-            console.error(`Erreur lecture JSON: ${err}`);
-            return res.status(500).json({
-                error: `Impossible de lire le fichier pour la ligne ${line}`,
-                details: err.message
-            });
-        }
-        try {
-            const cleanData = data
-                .replace(/\bNaN\b/g, 'null')
-                .replace(/\bInfinity\b/g, 'null')
-                .replace(/\b-Infinity\b/g, 'null');
-
-            const jsonData = JSON.parse(cleanData);
-            
-            const quantitative = [];
-            const qualitative = [];
-            
-            Object.entries(jsonData.Variables || {}).forEach(([variableName, variableData]) => {
-                if (variableData.type === 'quantitative') {
-                    quantitative.push(variableName);
-                } else if (variableData.type === 'qualitative') {
-                    qualitative.push(variableName);
-                }
-            });
-            
-            res.json({ quantitative, qualitative });
-        } catch (e) {
-            console.error(`Erreur parsing JSON: ${e}`);
-            res.status(500).json({
-                error: "Erreur de parsing du fichier JSON.",
-                details: e.message
-            });
-        }
+      }
     });
+
+    pythonProcess.on('error', (error) => {
+      console.error('💥 Erreur lors de l\'exécution du script Python:', error);
+      
+      // Mettre à jour le statut en cas d'erreur
+      setAnalysisStatus('idle');
+      io.emit('analysis-status-update', 'idle');
+      
+      createNotification({
+        message: `Erreur lors de l'exécution de l'analyse pour la ligne ${lineLetter}.`,
+        status: 'failed',
+        details: error.message
+      });
+    });
+
+  } catch (error) {
+    console.error('💥 Erreur lors du lancement du script Python:', error);
+    
+    // Mettre à jour le statut en cas d'erreur
+    setAnalysisStatus('idle');
+    io.emit('analysis-status-update', 'idle');
+    
+    createNotification({
+      message: `Erreur lors du lancement de l'analyse pour la ligne ${lineLetter}.`,
+      status: 'failed',
+      details: error.message
+    });
+  }
 };
 
-export const getRelationStatistics = (req, res) => {
-    const { line, var1, var2 } = req.params;
-    const fileName = `Fusion_107${line}_KPIs nettoyé_4fill_stats.json`;
-    const filePath = path.join(statsPath, fileName);
 
-    fs.readFile(filePath, 'utf8', (err, data) => {
-        if (err) {
-            console.error(`Erreur lecture JSON: ${err}`);
-            return res.status(500).json({
-                error: `Impossible de lire le fichier pour la ligne ${line}`,
-                details: err.message
-            });
-        }
+/**
+ * Récupère les noms des variables quantitatives et qualitatives depuis la base de données.
+ */
+export const getVariableNames = async (req, res) => {
+  const { line } = req.params;
+  // Ajout : Convertir 'D' en '107D'
+  const fullLine = `107${line.toUpperCase()}`; 
 
-        try {
-            const cleanData = data
-                .replace(/\bNaN\b/g, 'null')
-                .replace(/\bInfinity\b/g, 'null')
-                .replace(/\b-Infinity\b/g, 'null');
+  try {
+    const variables = await StatisticsVariable.find({ line: fullLine }).lean();
 
-            const jsonData = JSON.parse(cleanData);
-            
-            let relations = {};
+    if (!variables || variables.length === 0) {
+      return res.status(404).json({ error: `Variables non trouvées pour la ligne ${fullLine}.` });
+    }
+    // ... suite du code
+    const quantitative = [];
+    const qualitative = [];
 
-            if (jsonData.Relations) {
-                const relationKey = Object.keys(jsonData.Relations).find(key => {
-                    const relation = jsonData.Relations[key];
-                    return (relation.variables.includes(var1) && relation.variables.includes(var2));
-                });
-
-                if (relationKey) {
-                    relations[relationKey] = jsonData.Relations[relationKey];
-                }
-            }
-
-            res.json({ Relations: relations });
-        } catch (e) {
-            console.error(`Erreur parsing JSON: ${e}`);
-            res.status(500).json({
-                error: "Erreur de parsing du fichier JSON.",
-                details: e.message
-            });
-        }
+    variables.forEach(v => {
+      if (v.type === 'quantitative') {
+        quantitative.push(v.variable_name);
+      } else if (v.type === 'qualitative') {
+        qualitative.push(v.variable_name);
+      }
     });
+
+    res.status(200).json({ quantitative, qualitative });
+
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
+/**
+ * Récupère les données de relation entre deux variables spécifiques depuis la base de données.
+ */
+export const getRelationData = async (req, res) => {
+  const { line, var1, var2 } = req.params;
+  
+  // Utiliser directement la ligne reçue (déjà "107D")
+  const fullLine = line; // Pas besoin de conversion
+
+  try {
+    const relations = await StatisticsRelation.find({ 
+      line: fullLine, // Utiliser "107D" directement
+      variables: { $all: [var1, var2] } 
+    }).lean();
+
+    if (!relations || relations.length === 0) {
+      return res.status(404).json({ 
+        error: `Aucune relation trouvée entre ${var1} et ${var2} pour la ligne ${fullLine}.`
+      });
+    }
+
+    const response = {
+      Ligne: fullLine,
+      Variables: {},
+      Relations: relations.reduce((acc, r) => {
+        acc[r.relation_key] = {
+          variables: r.variables,
+          ...r.data,
+          chart_data: r.chart_data
+        };
+        return acc;
+      }, {})
+    };
+
+    res.status(200).json(response);
+
+  } catch (error) {
+    console.error('Erreur dans getRelationData:', error);
+    res.status(500).json({ error: 'Erreur serveur lors de la recherche de la relation.' });
+  }
 };

@@ -1,8 +1,10 @@
-// backend/controllers/pipelineController.js
+
 import { spawn } from 'child_process';
 import KpiData from '../models/KpiData.js';
+import { pipelineStatus, getIo, setPipelineStatus } from '../index.js';
+import { createNotification } from './notificationController.js';
 
-// Fonction pour vérifier si un document existe déjà
+
 async function checkDocumentExists(doc) {
   try {
     const existingDoc = await KpiData.findOne({
@@ -23,7 +25,7 @@ async function checkDocumentExists(doc) {
   }
 }
 
-// Fonction pour insérer seulement les nouveaux documents
+
 async function insertUniqueDocuments(documents) {
   const newDocuments = [];
   let duplicates = 0;
@@ -87,7 +89,6 @@ async function insertUniqueDocumentsEfficient(documents) {
   }
 }
 
-// 2. Fonction pour diviser en batches - C'EST ICI QUE VOUS COLLEZ
 async function processInBatches(documents, batchSize = 1000) {
   const results = { inserted: 0, duplicates: 0 };
   
@@ -104,25 +105,39 @@ async function processInBatches(documents, batchSize = 1000) {
 }
 
 export const runPipelineInMemory = (req, res) => {
-  console.log('Fichiers reçus en mémoire (contrôleur).');
-
-  if (!req.files || req.files.length === 0) {
-    return res.status(400).json({ error: 'Aucun fichier reçu.' });
+  if (pipelineStatus.status === 'running') {
+    return res.status(409).json({ error: "Un processus de fusion est déjà en cours." });
   }
 
-  // Organisation des fichiers par ligne (D, E, F)
+
   const filesByLine = {};
   req.files.forEach(file => {
-    const key = file.fieldname.split('_')[1]; // ex: file_D_1 -> D
+    const key = file.fieldname.split('_')[1];
     if (!filesByLine[key]) {
       filesByLine[key] = {};
     }
-    const fileIndex = file.fieldname.split('_')[2]; // ex: file_D_1 -> 1
+    const fileIndex = file.fieldname.split('_')[2];
     filesByLine[key][`file${fileIndex}`] = {
       buffer: file.buffer.toString('base64'),
       originalname: file.originalname
     };
   });
+
+
+  const linesProcessed = Object.keys(filesByLine).join(', ');
+  const startMessage = `Le processus de fusion des fichiers de la ligne ${linesProcessed} a commencé.`;
+
+  const io = getIo();
+  const newStatus = { status: 'running', results: [], error: null };
+  setPipelineStatus(newStatus);
+  io.emit('pipeline-status-update', newStatus);
+
+  createNotification({
+    message: startMessage,
+    status: 'in-progress'
+  });
+  
+  res.status(202).json({ message: 'Le processus de fusion a été accepté et démarré.' });
 
   const promises = Object.keys(filesByLine).map(line => {
     return new Promise((resolve, reject) => {
@@ -135,10 +150,7 @@ export const runPipelineInMemory = (req, res) => {
       
       const pythonProcess = spawn('python', ['-X', 'utf8', 'src/utils/full_pipeline_memory.py']);
 
-      pythonProcess.stdin.on('error', (err) => {
-        console.error(`Erreur d'écriture stdin pour la ligne ${line}:`, err.message);
-      });
-
+      pythonProcess.stdin.on('error', (err) => { console.error(`Erreur d'écriture stdin pour la ligne ${line}:`, err.message); });
       pythonProcess.on('error', (err) => {
         console.error(`Impossible de lancer le processus Python pour la ligne ${line}:`, err.message);
         reject({ line, status: 'error', message: 'Impossible de lancer le script Python.' });
@@ -162,78 +174,86 @@ export const runPipelineInMemory = (req, res) => {
       pythonProcess.stderr.on('data', (data) => { scriptError += data.toString(); });
 
       pythonProcess.on('close', (code) => {
-        const hasRealError = scriptError && !scriptError.includes('RuntimeWarning') && 
-                            !scriptError.includes('Mean of empty slice') &&
-                            !scriptError.includes('FutureWarning');
+        const hasRealError = scriptError && !scriptError.includes('RuntimeWarning') && !scriptError.includes('Mean of empty slice') && !scriptError.includes('FutureWarning');
         
         if (code === 0 && !hasRealError) {
           try {
             const lines = scriptOutput.trim().split('\n');
             const documents = [];
             
-            for (const line of lines) {
-              if (line.trim()) {
+            for (const docLine of lines) {
+              if (docLine.trim()) {
                 try {
-                  const doc = JSON.parse(line);
+                  const doc = JSON.parse(docLine);
                   documents.push(doc);
                 } catch (parseError) {
-                  console.error(`Erreur de parsing sur une ligne: ${parseError.message}`);
+                  console.error(`Erreur de parsing sur une ligne JSON: ${parseError.message}`);
                 }
               }
             }
             
             if (documents.length > 0) {
-      // UTILISATION DE processInBatches AU LIEU DE insertUniqueDocuments
-      processInBatches(documents, 1000)
-        .then(result => {
-          console.log(`SUCCÈS Ligne ${line}: ${result.inserted} documents insérés, ${result.duplicates} doublons ignorés.`);
-          resolve({ 
-            line, 
-            status: 'success', 
-            inserted: result.inserted, 
-            duplicates: result.duplicates 
-          });
-        })
-        .catch(dbError => reject({ 
-          line, 
-          status: 'error', 
-          message: 'Erreur lors de l\'insertion en base de données.', 
-          details: dbError.message 
-        }));
-    } else {
-              reject({ 
-                line, 
-                status: 'error', 
-                message: 'Aucun document valide produit par le script Python.', 
-                details: scriptOutput 
-              });
+              processInBatches(documents, 500)
+                .then(result => {
+                  console.log(`SUCCÈS Ligne ${line}: ${result.inserted} documents insérés, ${result.duplicates} doublons ignorés.`);
+                  resolve({ line, status: 'success', inserted: result.inserted, duplicates: result.duplicates });
+                })
+                .catch(dbError => reject({ line, status: 'error', message: 'Erreur lors de l\'insertion en base de données.', details: dbError.message }));
+            } else {
+              resolve({ line, status: 'success', inserted: 0, duplicates: 0, message: 'Aucun nouveau document à insérer.' });
             }
-            
           } catch (e) {
-            reject({ 
-              line, 
-              status: 'error', 
-              message: 'Erreur de traitement de la sortie Python.', 
-              details: e.message 
-            });
+            reject({ line, status: 'error', message: 'Erreur de traitement de la sortie Python.', details: e.message });
           }
         } else {
-          reject({ 
-            line, 
-            status: 'error', 
-            message: 'Le script Python a échoué.', 
-            details: scriptError || scriptOutput 
-          });
+          reject({ line, status: 'error', message: 'Le script Python a échoué.', details: scriptError || scriptOutput });
         }
       });
     });
   });
 
   Promise.all(promises)
-    .then(results => res.status(200).json({ status: 'Pipeline terminé', results }))
+    .then(results => {
+      console.log("Pipeline terminé avec succès sur le serveur.");
+      const finalStatus = { status: 'finished', results, error: null };
+      
+      setPipelineStatus(finalStatus);
+      getIo().emit('pipeline-status-update', finalStatus);
+
+      const successMessage = `La fusion des fichiers de la ligne ${linesProcessed} est terminée avec succès.`;
+      createNotification({
+        message: successMessage,
+        status: 'completed'
+      });
+    })
     .catch(error => {
       console.error("Erreur globale du pipeline:", error);
-      res.status(500).json({ status: 'Erreur du pipeline', error });
+      const errorStatus = { status: 'error', results: [], error: error.message || 'Erreur inconnue du pipeline' };
+
+      setPipelineStatus(errorStatus);
+      getIo().emit('pipeline-status-update', errorStatus);
+      
+      const errorMessage = `La fusion des fichiers de la ligne ${linesProcessed} a échoué.`;
+      createNotification({
+        message: errorMessage,
+        status: 'failed'
+      });
     });
 };
 
+export const getPipelineStatus = (req, res) => {
+  res.status(200).json(pipelineStatus);
+};
+
+export const cancelPipeline = (req, res) => {
+  if (pipelineStatus.status === 'running') {
+    setPipelineStatus({ status: 'cancelled', results: [], error: 'Processus annulé par l\'utilisateur' });
+    
+    const io = getIo();
+    io.emit('pipeline-status-update', pipelineStatus);
+    
+    return res.status(200).json({ message: 'Pipeline annulé avec succès' });
+  }
+  
+  return res.status(400).json({ error: 'Aucun pipeline en cours d\'exécution' });
+};

@@ -1,7 +1,7 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
-// 1. Importer le hook que nous avons créé
 import { useAnalysis } from '../../providers/AnalysisProvider';
+import { NotificationBell } from '../notifications/NotificationBell';
 
 type HeaderProps = {
   activePage: string;
@@ -9,7 +9,6 @@ type HeaderProps = {
 };
 
 export const Header: React.FC<HeaderProps> = ({ activePage, setActivePage }) => {
-  // 2. Récupérer l'état de l'analyse
   const { isAnalysisRunning } = useAnalysis();
 
   const NavLink = ({ pageName, children, disabled = false }: { pageName: string; children: React.ReactNode; disabled?: boolean }) => (
@@ -21,7 +20,7 @@ export const Header: React.FC<HeaderProps> = ({ activePage, setActivePage }) => 
         activePage === pageName
           ? "bg-slate-900 text-white"
           : disabled
-            ? "text-slate-400 cursor-not-allowed" // Style pour le bouton désactivé
+            ? "text-slate-400 cursor-not-allowed"
             : "text-slate-600 hover:bg-slate-100"
       )}
     >
@@ -36,17 +35,25 @@ export const Header: React.FC<HeaderProps> = ({ activePage, setActivePage }) => 
           <div className="flex items-center">
             <span className="font-bold text-xl text-slate-800">KPI Dashboard</span>
           </div>
-          <div className="flex items-center space-x-4">
-            <NavLink pageName="prediction">Prédiction</NavLink>
-            <NavLink pageName="metrics">Métrique de Performance</NavLink>
-            
-            {/* 3. Passer la propriété 'disabled' au NavLink de la page Statistiques */}
-            <NavLink pageName="statistics" disabled={isAnalysisRunning}>
-              Statistiques
-            </NavLink>
-            
-            <NavLink pageName="nettoyage">Fusion</NavLink> 
+          
+
+          <div className="flex items-center">
+            <div className="flex items-center space-x-4">
+              <NavLink pageName="prediction">Prédiction</NavLink>
+              <NavLink pageName="metrics">Métrique de Performance</NavLink>
+              <NavLink pageName="statistics" disabled={isAnalysisRunning}>
+                Statistiques
+              </NavLink>
+              <NavLink pageName="nettoyage">Fusion</NavLink> 
+            </div>
+
+
+            <div className="ml-4">
+              <NotificationBell />
+            </div>
+
           </div>
+
         </div>
       </nav>
     </header>

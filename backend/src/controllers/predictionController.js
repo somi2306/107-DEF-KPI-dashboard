@@ -3,7 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 
-// Helper pour obtenir le chemin du dossier courant (__dirname)
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -11,9 +11,9 @@ const getPythonScriptPath = (scriptName) => {
     return path.join(__dirname, '..', 'utils', scriptName);
 };
 
-// Helper pour nettoyer le nom de la cible pour le nom de fichier
+
 function cleanTargetName(targetName) {
-    // Conserve les accents pour correspondre aux noms de fichiers réels
+
     return targetName
         .replace(/\s+/g, '_')  // Remplace un ou plusieurs espaces par un seul underscore
         .replace(/%/g, 'pct')   // Remplace '%' par 'pct'
@@ -129,7 +129,7 @@ export const getModelEquation = (req, res) => {
             return res.status(500).json({ error: "Erreur récupération équation.", details: errorString });
         }
         try {
-            // Extract last valid JSON object from stdout
+
             const lines = dataString.trim().split(/\r?\n/);
             let lastJson = null;
             for (let i = lines.length - 1; i >= 0; i--) {
@@ -169,12 +169,12 @@ export const getVisualization = (req, res) => {
     return res.status(400).json({ error: "Type de modèle non supporté." });
   }
 
-  // Nettoyage du nom de la cible pour le nom de fichier
+
   const targetForFilename = cleanTargetName(targetName);
   const modelFileName = `${modelFileNamePart}_${ligne}_${targetForFilename}.joblib`;
   const modelPath = path.join(__dirname, '..', 'utils', 'models', modelFileName);
   
-  const dataImputationMethod = 'ffill'; // On utilise un fichier de données connu
+  const dataImputationMethod = 'ffill'; 
   const dataFileName = `Fusion_107${ligne}_KPIs_${dataImputationMethod}.xlsx`;
   const dataPath = path.join(__dirname, '..', 'data', `ligne ${ligne}`, dataFileName);
 
@@ -194,7 +194,7 @@ export const getVisualization = (req, res) => {
   const pythonScriptPath = path.join(__dirname, '..', 'utils', 'visualize_tree.py');
   
 
-  // On passe le nom de la cible ('targetName') comme 4ème argument au script Python
+
   const pythonProcess = spawn('python', [pythonScriptPath, modelPath, dataPath, modelForPython, targetName]);
 
   let imagePath = '';
@@ -233,7 +233,7 @@ export const getTreeData = (req, res) => {
     return res.status(400).json({ error: "Ce type de modèle ne peut pas être visualisé comme un arbre." });
   }
 
-  // Nettoyage du nom de la cible pour le nom de fichier
+
   const targetForFilename = cleanTargetName(targetName);
   const modelFileName = `${modelFileNamePart}_${ligne}_${targetForFilename}.joblib`;
   const modelPath = path.join(__dirname, '..', 'utils', 'models', modelFileName);
@@ -269,7 +269,7 @@ export const getTreeData = (req, res) => {
 
 
 
-// --- LA FORME DE L'ARBRE ---
+
 export const getTreeShape = (req, res) => {
   const { model, ligne, imputation: targetName } = req.query;
   const __filename = fileURLToPath(import.meta.url);
@@ -289,7 +289,7 @@ export const getTreeShape = (req, res) => {
     return res.status(400).json({ error: "Ce type de modèle n'a pas de forme d'arbre." });
   }
 
-  // Nettoyage du nom de la cible pour le nom de fichier
+
   const targetForFilename = cleanTargetName(targetName);
   const modelFileName = `${modelFileNamePart}_${ligne}_${targetForFilename}.joblib`;
   const modelPath = path.join(__dirname, '..', 'utils', 'models', modelFileName);
@@ -327,17 +327,17 @@ export const getAllTreeData = (req, res) => {
     return res.status(400).json({ error: 'Les paramètres modelName, ligne et targetName sont requis.' });
   }
   
-  // Construit le nom du fichier de la même manière que le hook frontend
+
   const modelFileNameBase = `${modelName.toLowerCase()}_${ligne}_${cleanTargetName(targetName)}`;
   
-  // Chemin vers le fichier JSON qui contient les données de tous les arbres
+
   const treesDataPath = path.join(
     __dirname, 
     '..', 
     'utils', 
     'models', 
-    `${modelFileNameBase}_trees_visualizations`, // Le dossier créé par le script python
-    'all_trees_data.json' // Le fichier JSON généré
+    `${modelFileNameBase}_trees_visualizations`, 
+    'all_trees_data.json' 
   );
 
   if (fs.existsSync(treesDataPath)) {
@@ -348,7 +348,7 @@ export const getAllTreeData = (req, res) => {
       res.status(500).json({ error: 'Erreur lors de la lecture du fichier des données des arbres.' });
     }
   } else {
-    // Si le fichier n'existe pas, renvoyer une erreur 404 claire
+
     res.status(404).json({ error: `Fichier de visualisation introuvable pour ce modèle: ${treesDataPath}` });
   }
 };
@@ -357,7 +357,7 @@ export const getLearningCurveData = (req, res) => {
     const { modelName, ligne, targetName } = req.query;
     if (!modelName || !ligne || !targetName) return res.status(400).json({ error: 'Paramètres manquants.' });
 
-    // Le nom est maintenant construit correctement
+
     const modelFileNameBase = `${modelName.toLowerCase()}_${ligne}_${cleanTargetName(targetName)}`;
     const lcDataPath = path.join(__dirname, '..', 'utils', 'models', `${modelFileNameBase}_learning_curve.json`);
 
@@ -375,13 +375,13 @@ export const getPredictionPlotData = (req, res) => {
     return res.status(400).json({ error: 'Le paramètre modelName est requis.' });
   }
   
-  // Le frontend envoie déjà le nom de fichier complet et correct
+
   const plotDataPath = path.join(
     __dirname, 
     '..', 
     'utils', 
     'models', 
-    `${modelName}_predictions.json` // Le fichier généré par le script d'entraînement
+    `${modelName}_predictions.json` 
   );
 
   if (fs.existsSync(plotDataPath)) {

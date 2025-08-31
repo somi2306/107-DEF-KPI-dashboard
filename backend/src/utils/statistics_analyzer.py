@@ -48,6 +48,95 @@ def get_mongodb_connection():
         print(f"❌ Erreur de connexion MongoDB: {e}")
         return None
 
+def save_statistics_to_mongodb(line, statistics_data):
+    """Sauvegarde les résultats statistiques dans MongoDB en documents séparés"""
+    client = get_mongodb_connection()
+    if not client:
+        print("❌ Impossible de se connecter à MongoDB pour sauvegarder les résultats")
+        return False
+    
+    try:
+        db = client['107_DEF_KPI_dashboard']
+        
+        # 1. Sauvegarder les variables individuellement
+        variables_collection = db['statistics_variables']
+        variables_count = 0
+        
+        for var_name, var_data in statistics_data.get("Variables", {}).items():
+            if var_data:  # Vérifier que les données ne sont pas vides
+                variable_doc = {
+                    "line": line,
+                    "variable_name": var_name,
+                    **var_data
+                }
+                variables_collection.update_one(
+                    {"line": line, "variable_name": var_name},
+                    {"$set": variable_doc},
+                    upsert=True
+                )
+                variables_count += 1
+        
+        # 2. Sauvegarder les relations individuellement
+        relations_collection = db['statistics_relations']
+        relations_count = 0
+        
+        for rel_key, rel_data in statistics_data.get("Relations", {}).items():
+            if rel_data and "variables" in rel_data:
+                # Déterminer le type de relation
+                rel_type = "unknown"
+                if "quantitatives" in rel_key:
+                    rel_type = "quantitative"
+                elif "qualitatives" in rel_key:
+                    rel_type = "qualitative"
+                elif "quant_qual" in rel_key:
+                    rel_type = "quant_qual"
+                
+                relation_doc = {
+                    "line": line,
+                    "relation_key": rel_key,
+                    "type": rel_type,
+                    "variables": rel_data["variables"],
+                    "data": {k: v for k, v in rel_data.items() if k != "variables"},
+                    "chart_data": rel_data.get("chart_data", {})
+                }
+                relations_collection.update_one(
+                    {"line": line, "relation_key": rel_key},
+                    {"$set": relation_doc},
+                    upsert=True
+                )
+                relations_count += 1
+        
+        # 3. Sauvegarder les métadonnées principales
+        main_collection = db['statistics_results']
+        main_doc = {
+            "Ligne": line,
+            "metadata": {
+                "total_variables": variables_count,
+                "total_relations": relations_count,
+                "generated_at": pd.Timestamp.now().isoformat(),
+                "imputation_method": "4fill"
+            }
+        }
+        
+        main_collection.update_one(
+            {"Ligne": line},
+            {"$set": main_doc},
+            upsert=True
+        )
+        
+        print(f"✅ Résultats sauvegardés pour la ligne {line}")
+        print(f"   - {variables_count} variables sauvegardées")
+        print(f"   - {relations_count} relations sauvegardées")
+        
+        client.close()
+        return True
+        
+    except Exception as e:
+        print(f"❌ Erreur lors de la sauvegarde dans MongoDB: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+    
 # Fonction pour récupérer les données d'une ligne spécifique
 def get_line_data(line_number):
     """Récupère les données pour une ligne spécifique depuis MongoDB"""
@@ -593,8 +682,8 @@ def analyze_column(series, col_name):
     except (ValueError, TypeError):
         return analyze_qualitative(series)
 
-def analyze_file_from_mongodb(line, output_folder="src/utils/stats"):
-    """Analyse les données depuis MongoDB pour une ligne spécifique"""
+def analyze_file_from_mongodb(line):
+    """Analyse les données depuis MongoDB pour une ligne spécifique et sauvegarde dans Azure Cosmos DB"""
     print(f"\n{'='*60}")
     print(f"📊 DÉBUT DE L'ANALYSE POUR LA LIGNE {line}")
     print(f"{'='*60}")
@@ -637,20 +726,20 @@ def analyze_file_from_mongodb(line, output_folder="src/utils/stats"):
     
     results = convert_numpy_types(results)
     
-    os.makedirs(output_folder, exist_ok=True)
-    output_file_name = f"Fusion_107{line}_KPIs nettoyé_4fill_stats.json"
-    output_path = os.path.join(output_folder, output_file_name)
+    # Sauvegarder directement dans Azure Cosmos DB
+    success = save_statistics_to_mongodb(line, results)
     
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(results, f, ensure_ascii=False, indent=4)
+    if success:
+        print(f"✅✅✅ RÉSULTATS SAUVEGARDÉS DANS AZURE COSMOS DB ✅✅✅")
+        return {"success": True, "saved_to": "azure_cosmos_db"}
+    else:
+        print(f"❌❌❌ ÉCHEC DE LA SAUVEGARDE DANS AZURE COSMOS DB ❌❌❌")
+        return {"error": "Échec de la sauvegarde dans Azure Cosmos DB"}
     
-    print(f"\n✅✅✅ RÉSULTATS SAUVEGARDÉS DANS {output_path} ✅✅✅")
-    
-    return {"success": True, "file_path": output_path}
 
 # Fonction principale pour analyser les 3 lignes
 def analyze_all_lines():
-    """Analyse les 3 lignes (107D, 107E, 107F) et génère 3 fichiers JSON"""
+    """Analyse les 3 lignes (107D, 107E, 107F) et sauvegarde dans Azure Cosmos DB"""
     lines = ['107D', '107E', '107F']
     results = {}
     
@@ -659,20 +748,20 @@ def analyze_all_lines():
         print(f"LANCEMENT DE L'ANALYSE POUR LA LIGNE: {line}")
         print(f"{'='*80}")
         
-        result = analyze_file_from_mongodb(line)
+        result = analyze_file_from_mongodb(line)  # Plus de paramètre output_folder
         results[line] = result
         
         print(f"\n⏳ Attente de 2 secondes avant la prochaine ligne...")
         import time
-        time.sleep(2)  # Pause pour éviter la surcharge
+        time.sleep(2)
     
     print(f"\n🎉 ANALYSE TERMINÉE POUR TOUTES LES LIGNES!")
-    print(f"📁 Fichiers générés:")
+    print(f"📁 Données sauvegardées dans Azure Cosmos DB")
     for line, result in results.items():
         if result.get('success'):
-            print(f"   • {line}: {result['file_path']}")
+            print(f"   • {line}: ✅ Succès")
         else:
-            print(f"   • {line}: ERREUR - {result.get('error', 'Unknown error')}")
+            print(f"   • {line}: ❌ ERREUR - {result.get('error', 'Unknown error')}")
     
     return results
 
@@ -683,16 +772,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         line_to_analyze = sys.argv[1]
         print(f"Argument détecté. Lancement de l'analyse pour la ligne unique : {line_to_analyze}")
-        analyze_file_from_mongodb(line_to_analyze)
+        analyze_file_from_mongodb(line_to_analyze)  # Sans paramètre output_folder
     else:
         print("ℹ️ Aucun argument détecté. Lancement de l'analyse pour toutes les lignes (D, E, F).")
         analyze_all_lines()
-
-
-    print("\n Test de connexion à MongoDB...")
-    client = get_mongodb_connection()
-    if client:
-        db = client['107_DEF_KPI_dashboard']
-        collections = db.list_collection_names()
-        print(f" Collections disponibles: {collections}")
-        client.close()

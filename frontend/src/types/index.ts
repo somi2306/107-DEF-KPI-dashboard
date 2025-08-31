@@ -145,11 +145,6 @@ export interface Relations {
 }
 
 
-export interface StatisticsResponse {
-    Fichier: string;
-    Variables: Record<string, DescriptiveStats>;
-    Relations?: Relations;
-}
 
 export interface QualitativeData {
     type: 'qualitative';
@@ -291,4 +286,25 @@ export interface QualitativeStats {
         categories: string[];
         sample_size: number;
     };
+}
+
+// Dans types/index.ts
+export interface StatisticsResponse {
+  Ligne: string;
+  Variables: Record<string, DescriptiveStats>;
+  Relations: Record<string, RelationData>;
+  metadata?: {
+    total_variables: number;
+    total_relations: number;
+    generated_at: string;
+    imputation_method: string;
+    analysis_duration?: number;
+  };
+}
+
+export interface RelationData {
+  variables: string[];
+  type?: string;
+  data: any;
+  chart_data?: any;
 }

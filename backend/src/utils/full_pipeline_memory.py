@@ -522,9 +522,6 @@ def convert_numbers(obj):
     else:
         return obj
 
-# backend/utils/full_pipeline_memory.py
-
-# ... (keep all the functions from the top of the file down to convert_numbers)
 
 def main():
     try:

@@ -288,38 +288,49 @@ const targetVarsList = [
     }
   }, [line]);
 
-  const handleFetchStatistics = async () => {
-    if (!line) return;
-    setLoading(true);
-    setError(null);
-    setStats(null);
-    try {
-      let data;
-      if (analysisType === 'relations' && relationsSubType === 'quantitative_quantitative' && targetRelationVariable && otherRelationVariable) {
-        const relationData = await api.getRelationStatistics(line, targetRelationVariable, otherRelationVariable);
+const handleFetchStatistics = async () => {
+  if (!line) return;
+  setLoading(true);
+  setError(null);
+  setStats(null);
+
+  // --- AJOUT 1 : Log des variables avant l'appel ---
+  if (analysisType === 'relations' && relationsSubType === 'quantitative_quantitative' && targetRelationVariable && otherRelationVariable) {
+    console.log("🕵️‍♂️ Lancement de la requête de relation avec :");
+    console.log("  > Ligne :", line);
+    console.log("  > Var 1 :", `"${targetRelationVariable}"`); // Ajout de guillemets pour voir les espaces
+    console.log("  > Var 2 :", `"${otherRelationVariable}"`);
+  }
+
+  try {
+    let data;
+    
+    if (analysisType === 'relations' && relationsSubType === 'quantitative_quantitative' && targetRelationVariable && otherRelationVariable) {
+      // Récupérer une relation spécifique
+      data = await api.getRelationStatistics(line, targetRelationVariable, otherRelationVariable);
+    } else {
+      // Récupérer toutes les statistiques de la ligne
+      data = await api.getStatistics(line);
+      
+      // Filtrer si on veut une variable spécifique en analyse descriptive
+      if (analysisType === 'descriptive' && descriptiveSubType === 'quantitative' && targetVariable) {
         data = {
-          Fichier: `Relation entre ${targetRelationVariable} et ${otherRelationVariable}`,
-          Variables: {},
-          Relations: relationData.Relations || {}
+          ...data,
+          Variables: {
+            [targetVariable]: data.Variables[targetVariable]
+          },
         };
-      } else {
-        data = await api.getStatistics(line);
-        if (analysisType === 'descriptive' && descriptiveSubType === 'quantitative' && targetVariable) {
-          data = {
-            ...data,
-            Variables: {
-              [targetVariable]: data.Variables[targetVariable]
-            },
-          };
-        }
       }
-      setStats(data);
-    } catch (err: any) {
-      setError(err.message || "Erreur de chargement des statistiques.");
-    } finally {
-      setLoading(false);
     }
-  };
+    setStats(data);
+  } catch (err: any) {
+    // --- AJOUT 2 : Log détaillé de l'erreur ---
+    console.error("❌ Erreur API détaillée :", err.response ? err.response.data : err.message);
+    setError(err.message || "Erreur de chargement des statistiques.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const isQuantitative = (data: DescriptiveStats): data is QuantitativeStats => {
     return data?.type === 'quantitative';
@@ -329,13 +340,14 @@ const targetVarsList = [
     return data?.type === 'qualitative';
   };
 
-  const filteredQuantitativeVars = useMemo(() => {
-    if (!stats) return [];
-    const allVars = Object.entries(stats.Variables).filter(([_, data]) =>
-      isQuantitative(data)
-    );
-    return allVars;
-  }, [stats]);
+const filteredQuantitativeVars = useMemo(() => {
+  // On vérifie maintenant aussi la présence de stats.Variables
+  if (!stats || !stats.Variables) return []; 
+  const allVars = Object.entries(stats.Variables).filter(([_, data]) =>
+    isQuantitative(data)
+  );
+  return allVars;
+}, [stats]);
 
   const filteredQualitativeVars = useMemo(() => {
     if (!stats || !stats.Variables) return [];
@@ -563,6 +575,7 @@ const targetVarsList = [
 
   const renderRelationItem = (relationKey: string, relationData: any, index: number) => {
     const keyLower = relationKey.toLowerCase();
+    
 
     if (keyLower.includes('qualitative')) {
       const qualData = relationData as RelationQualitative;
@@ -776,8 +789,8 @@ const targetVarsList = [
     return Object.keys(filtered).length > 0 ? filtered : null;
   };
 
-  const quantitativeVars = stats ? Object.entries(stats.Variables).filter(([_, data]) => isQuantitative(data)) : [];
-  const qualitativeVars = stats ? Object.entries(stats.Variables).filter(([_, data]) => isQualitative(data)) : [];
+const quantitativeVars = stats && stats.Variables ? Object.entries(stats.Variables).filter(([_, data]) => isQuantitative(data)) : [];
+const qualitativeVars = stats && stats.Variables ? Object.entries(stats.Variables).filter(([_, data]) => isQualitative(data)) : [];
   const relationsData = filteredRelations();
   const hasRelations = relationsData && Object.keys(relationsData).length > 0;
 const availableCorrelationVars = useMemo(() => {

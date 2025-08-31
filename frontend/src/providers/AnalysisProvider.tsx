@@ -1,75 +1,124 @@
-
-
-import React, { createContext, useState, useContext, useEffect} from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import { api } from '../services/api';
-import { io, Socket } from 'socket.io-client'; 
-import { API_BASE_URL } from '../lib/constants'; 
+import { api, runFullPipelineInMemory } from '../services/api'; 
 
 interface AnalysisContextType {
   isAnalysisRunning: boolean;
-  startStatisticsGeneration: (line: string) => Promise<void>;
-  error: string | null;
+  isPipelineRunning: boolean;
+  pipelineResults: any[];
+  pipelineError: string | null;
+  startPipeline: (files: { [key: string]: File | null }) => Promise<void>;
+  stopPipeline: () => void;
+  startStatisticsGeneration: (line: string) => void;
 }
 
 const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined);
 
-
-const SOCKET_URL = API_BASE_URL.replace('/api', '');
-
-export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
-  const [isAnalysisRunning, setIsAnalysisRunning] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Établir la connexion WebSocket une seule fois
-    const socket: Socket = io(SOCKET_URL);
-
-    socket.on('connect', () => {
-      console.log('Connecté au serveur WebSocket avec ID:', socket.id);
-    });
-
-    // Écouter les mises à jour de statut envoyées par le serveur
-    socket.on('analysis-status-update', (status: 'idle' | 'running') => {
-      console.log('Mise à jour du statut reçue:', status);
-      setIsAnalysisRunning(status === 'running');
-    });
-
-    socket.on('disconnect', () => {
-      console.log('Déconnecté du serveur WebSocket');
-    });
-
-    // Nettoyer la connexion quand le composant est démonté
-    return () => {
-      socket.disconnect();
-    };
-  }, []); // Le tableau vide assure que l'effet s'exécute une seule fois
-
-  const startStatisticsGeneration = async (line: string) => {
-    // Elle se contente de déclencher le processus. Le serveur s'occupera de la diffusion.
-    setError(null);
-    try {
-      await api.generateStatistics(line);
-      // L'alerte de succès est optionnelle, le popup disparaîtra automatiquement
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.error || err.message;
-      setError(errorMessage);
-      alert(`Erreur lors du lancement de l'analyse : ${errorMessage}`);
-      // L'état isAnalysisRunning sera automatiquement remis à 'false' par le serveur
-    }
-  };
-
-  return (
-    <AnalysisContext.Provider value={{ isAnalysisRunning, startStatisticsGeneration, error }}>
-      {children}
-    </AnalysisContext.Provider>
-  );
-};
-
 export const useAnalysis = () => {
   const context = useContext(AnalysisContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAnalysis must be used within an AnalysisProvider');
   }
   return context;
+};
+
+interface AnalysisProviderProps {
+  children: ReactNode;
+}
+
+export const AnalysisProvider: React.FC<AnalysisProviderProps> = ({ children }) => {
+  const [isAnalysisRunning, setIsAnalysisRunning] = useState(false);
+  const [isPipelineRunning, setIsPipelineRunning] = useState(false);
+  const [pipelineResults, setPipelineResults] = useState<any[]>([]);
+  const [pipelineError, setPipelineError] = useState<string | null>(null);
+
+  const checkPipelineStatus = useCallback(async () => {
+    try {
+      const status = await api.getPipelineStatus();
+      setIsPipelineRunning(status.status === 'running');
+      
+      if (status.status === 'finished' && status.results.length > 0) {
+        setPipelineResults(status.results);
+      } else if (status.status === 'error') {
+        setPipelineError(status.error);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la vérification du statut du pipeline:', error);
+      setIsPipelineRunning(false); 
+    }
+  }, []);
+
+  const checkAnalysisStatus = useCallback(async () => {
+    try {
+      const { status } = await api.getAnalysisStatus();
+      setIsAnalysisRunning(status === 'running');
+    } catch (error) {
+      console.error("Erreur lors de la vérification du statut de l'analyse:", error);
+      setIsAnalysisRunning(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkPipelineStatus();
+    checkAnalysisStatus();
+    const interval = setInterval(() => {
+      checkPipelineStatus();
+      checkAnalysisStatus();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [checkPipelineStatus, checkAnalysisStatus]);
+
+  const startStatisticsGeneration = async (line: string) => {
+    setIsAnalysisRunning(true);
+    try {
+      await api.generateStatisticsFromMongoDB(line);
+      // Le statut sera mis à jour via le polling de checkAnalysisStatus
+    } catch (error) {
+      console.error("Erreur lors du lancement de l'analyse:", error);
+      setIsAnalysisRunning(false); // Remettre à false uniquement en cas d'erreur immédiate
+    }
+  };
+
+  const startPipeline = async (files: { [key: string]: File | null }) => {
+    setIsPipelineRunning(true);
+    setPipelineResults([]);
+    setPipelineError(null);
+
+    try {
+      await runFullPipelineInMemory(files);
+
+    } catch (err) {
+
+      if (err instanceof Error) {
+        setPipelineError(err.message);
+      } else {
+        setPipelineError('Erreur de communication avec le serveur.');
+      }
+
+      setIsPipelineRunning(false);
+    }
+
+  };
+
+
+  const stopPipeline = () => {
+    console.log("Annulation du pipeline demandée.");
+    setIsPipelineRunning(false);
+  };
+
+  const value: AnalysisContextType = {
+    isAnalysisRunning,
+    isPipelineRunning,
+    pipelineResults,
+    pipelineError,
+    startStatisticsGeneration,
+    startPipeline,
+    stopPipeline,
+  };
+
+  return (
+    <AnalysisContext.Provider value={value}>
+      {children}
+    </AnalysisContext.Provider>
+  );
 };

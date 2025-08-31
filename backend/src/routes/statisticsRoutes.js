@@ -1,13 +1,17 @@
-
-
 import express from 'express';
-import { getDescriptiveStatistics, getVariableNames, getRelationStatistics, generateStatisticsFromMongoDB } from '../controllers/statisticsController.js';
+import { 
+  getStatistics, 
+  getVariableNames, 
+  getRelationData, 
+  generateStatisticsFromMongoDB
+} from '../controllers/statisticsController.js';
 
 const router = express.Router();
 
-router.get('/analyze/:line', getDescriptiveStatistics);
+// Changer la route pour accepter le format 107D directement
+router.get('/:line', getStatistics);
 router.get('/variable-names/:line', getVariableNames);
-router.get('/relations/:line/:var1/:var2', getRelationStatistics);
+router.get('/relations/:line/:var1/:var2', getRelationData);
 router.post('/generate/:line', generateStatisticsFromMongoDB);
 
 export default router;

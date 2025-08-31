@@ -31,7 +31,6 @@ const uploadAndGetDataInfo = (req, res) => {
   });
 
   pythonProcess.on('close', (code) => {
-    // Supprimer le fichier temporaire après utilisation
     fs.unlink(filePath, (err) => {
       if (err) {
         console.error("Erreur lors de la suppression du fichier temporaire:", err);
@@ -61,7 +60,6 @@ const processAndFuseFiles = (req, res) => {
   const outputDir = path.join(__dirname, '..', 'uploads');
   const pythonScriptPath = path.join(__dirname, '..', 'utils', 'process_fusion.py');
   
-  // Check if Python script exists
   if (!fs.existsSync(pythonScriptPath)) {
     console.error(`Python script not found at: ${pythonScriptPath}`);
     return res.status(500).send({ 
@@ -70,7 +68,7 @@ const processAndFuseFiles = (req, res) => {
     });
   }
 
-  // Check if output directory exists, create if not
+
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }
@@ -115,7 +113,7 @@ const processAndFuseFiles = (req, res) => {
     console.log(`Script output: ${scriptOutput}`);
     console.log(`Script error: ${scriptError}`);
 
-    // Cleanup temporary files
+
     filesToProcess.forEach(file => {
       fs.unlink(file.path, (err) => {
         if (err) console.error(`Erreur de suppression du fichier temporaire ${file.path}:`, err);
@@ -142,7 +140,7 @@ const processAndFuseFiles = (req, res) => {
     }
   });
 
-  // Gestion des erreurs de spawn
+
   pythonProcess.on('error', (err) => {
     console.error('Failed to start Python process:', err);
     res.status(500).send({ 
@@ -179,18 +177,18 @@ const cleanFiles = (req, res) => {
     console.log(`Python cleaning process exited with code: ${code}`);
     console.log(`Full script output length: ${scriptOutput.length}`);
 
-    // Méthode améliorée pour extraire le JSON
+    
     let jsonResponse;
     
     try {
-      // Essayer de parser directement toute la sortie
+
       jsonResponse = JSON.parse(scriptOutput);
     } catch (firstError) {
       console.log('First parse attempt failed, trying to extract JSON...');
       
-      // Essayer d'extraire le JSON avec une méthode plus robuste
+
       try {
-        // Chercher le premier { et le dernier } pour extraire le JSON complet
+
         const firstBrace = scriptOutput.indexOf('{');
         const lastBrace = scriptOutput.lastIndexOf('}');
         
@@ -214,7 +212,7 @@ const cleanFiles = (req, res) => {
       }
     }
 
-    // Si on arrive ici, le JSON a été parsé avec succès
+
     if (code !== 0) {
       return res.status(500).send({ 
         status: 'error', 
@@ -224,7 +222,7 @@ const cleanFiles = (req, res) => {
       });
     }
     
-    // Succès !
+    
     res.status(200).send(jsonResponse);
   });
 

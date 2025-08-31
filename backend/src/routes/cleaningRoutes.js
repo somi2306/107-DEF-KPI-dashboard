@@ -9,19 +9,19 @@ import fs from 'fs';
 
 const router = express.Router();
 
-// Remplacement pour __dirname dans les modules ES
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Configuration de Multer
+
 const upload = multer({ dest: path.join(__dirname, '..', 'uploads/') });
 
-// Route pour télécharger les fichiers générés
+
 router.get('/download/:filename', (req, res) => {
   const filename = req.params.filename;
   const filePath = path.join(__dirname, '..', 'uploads', filename);
   
-  // Vérifier si le fichier existe
+
   if (fs.existsSync(filePath)) {
     res.download(filePath, filename, (err) => {
       if (err) {

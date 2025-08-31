@@ -101,23 +101,44 @@ export const api = {
   },
 
   getStatistics: async (line: string): Promise<StatisticsResponse> => {
-      const response = await axios.get(`${API_BASE_URL}/stats/analyze/${line}`);
-      if (response.data.error) throw new Error(response.data.error);
-      return response.data;
-  },
-  getVariableNames: async (line: string): Promise<{quantitative: string[], qualitative: string[]}> => {
-      const response = await axios.get(`${API_BASE_URL}/stats/variable-names/${line}`);
-      if (response.data.error) throw new Error(response.data.error);
-      return response.data;
-  },
-  getRelationStatistics: async (line: string, var1: string, var2: string): Promise<StatisticsResponse> => {
-    const response = await axios.get(`${API_BASE_URL}/stats/relations/${line}/${encodeURIComponent(var1)}/${encodeURIComponent(var2)}`);
+    const response = await axios.get(`${API_BASE_URL}/stats/${line}`);
     if (response.data.error) throw new Error(response.data.error);
     return response.data;
   },
-  generateStatistics: async (line: string): Promise<any> => {
-    const response = await axios.post(`${API_BASE_URL}/stats/generate/${line}`);
+  
+  getVariableNames: async (line: string): Promise<{quantitative: string[], qualitative: string[]}> => {
+    const response = await axios.get(`${API_BASE_URL}/stats/variable-names/${line}`);
     if (response.data.error) throw new Error(response.data.error);
+    return response.data;
+  },
+  
+getRelationStatistics: async (line: string, var1: string, var2: string): Promise<StatisticsResponse> => {
+  const response = await axios.get(`${API_BASE_URL}/stats/relations/107${line}/${encodeURIComponent(var1)}/${encodeURIComponent(var2)}`);
+  if (response.data.error) throw new Error(response.data.error);
+  return response.data;
+},
+  
+  generateStatisticsFromMongoDB: async (line: string): Promise<any> => {
+    const response = await axios.post(`${API_BASE_URL}/stats/generate/107${line}`);
+    if (response.data.error) throw new Error(response.data.error);
+    return response.data;
+  },
+
+  getNotifications: async (): Promise<any[]> => {
+    const response = await axios.get(`${API_BASE_URL}/notifications`);
+    return response.data;
+  },
+
+  markNotificationsAsRead: async (): Promise<void> => {
+    await axios.post(`${API_BASE_URL}/notifications/mark-as-read`);
+  },
+    getPipelineStatus: async (): Promise<any> => {
+    const response = await axios.get(`${API_BASE_URL}/pipeline/status`);
+    return response.data;
+  },
+  
+  getAnalysisStatus: async (): Promise<{status: string}> => {
+    const response = await axios.get(`${API_BASE_URL}/analysis/status`);
     return response.data;
   },
 };
@@ -223,8 +244,3 @@ export const runFullPipelineInMemory = async (files: { [key: string]: File | nul
     throw new Error('Erreur de communication avec le serveur.');
   }
 };
-
-
-
-
-

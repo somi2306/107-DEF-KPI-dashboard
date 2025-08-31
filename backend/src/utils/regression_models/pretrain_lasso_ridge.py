@@ -20,7 +20,6 @@ def train_lasso(X_train, y_train, X_test, y_test):
     model.fit(X_train_scaled, y_train_scaled)
 
     # 3. Faire des prédictions et les dénormaliser
-    # --- CORRECTION ICI ---
     # On reshape la prédiction en tableau 2D (colonne)
     y_pred_scaled = model.predict(X_test_scaled).reshape(-1, 1)
     
@@ -54,7 +53,7 @@ def train_ridge(X_train, y_train, X_test, y_test):
     model.fit(X_train_scaled, y_train_scaled)
 
     # 3. Faire des prédictions et les dénormaliser
-    # --- CORRECTION ICI ---
+
     # On reshape la prédiction en tableau 2D (colonne)
     y_pred_scaled = model.predict(X_test_scaled).reshape(-1, 1)
 
