@@ -3,395 +3,191 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const getPythonScriptPath = (scriptName) => {
-    return path.join(__dirname, '..', 'utils', scriptName);
-};
+import { MongoClient } from 'mongodb';
+import dotenv from 'dotenv';
 
+// Charger les variables d'environnement
+dotenv.config();
 
-function cleanTargetName(targetName) {
-
-    return targetName
-        .replace(/\s+/g, '_')  // Remplace un ou plusieurs espaces par un seul underscore
-        .replace(/%/g, 'pct')   // Remplace '%' par 'pct'
-        .replace(/-/g, '_'); 
-}
-
-
-export const getPrediction = (req, res) => {
-    const { model_name, features } = req.body;
-
-    if (!model_name || !features) {
-        return res.status(400).json({ error: "Les paramètres 'model_name' et 'features' sont requis." });
+// Fonction de connexion MongoDB
+const get_mongodb_connection = () => {
+  try {
+    const mongodb_uri = process.env.MONGODB_URI;
+    if (!mongodb_uri) {
+      throw new Error("MONGODB_URI non trouvée dans les variables d'environnement");
     }
-
-    const featuresJsonString = JSON.stringify(features);
-    const pythonScriptPath = getPythonScriptPath('predict.py');
-    const pythonProcess = spawn('python', [pythonScriptPath, 'predict', model_name, featuresJsonString]);
-
-    let dataString = '';
-    let errorString = '';
-
-    pythonProcess.stdout.on('data', (data) => dataString += data.toString());
-    pythonProcess.stderr.on('data', (data) => errorString += data.toString());
-
-    pythonProcess.on('close', (code) => {
-        if (code !== 0) {
-            console.error(`Erreur du script Python (predict): ${errorString}`);
-            return res.status(500).json({ error: "Erreur script prédiction.", details: errorString });
-        }
-        try {
-            res.status(200).json(JSON.parse(dataString));
-        } catch (e) {
-            res.status(500).json({ error: "Erreur parsing réponse (prédiction)." });
-        }
-    });
-};
-
-export const getModelFeatures = (req, res) => {
-    const { line } = req.body;
-    if (!line) return res.status(400).json({ error: "Le paramètre 'line' est requis." });
     
-    const pythonScriptPath = getPythonScriptPath('predict.py');
-    const pythonProcess = spawn('python', [pythonScriptPath, 'get_features', line]);
-
-    let dataString = '';
-    let errorString = '';
-
-    pythonProcess.stdout.on('data', (data) => dataString += data.toString());
-    pythonProcess.stderr.on('data', (data) => errorString += data.toString());
-
-    pythonProcess.on('close', (code) => {
-        if (code !== 0) {
-            console.error(`Erreur du script Python (get_features): ${errorString}`);
-            return res.status(500).json({ error: "Erreur récupération features.", details: errorString });
-        }
-        try {
-            res.status(200).json(JSON.parse(dataString));
-        } catch (e) {
-            res.status(500).json({ error: "Erreur parsing réponse (features)." });
-        }
-    });
+    const client = new MongoClient(mongodb_uri);
+    return client;
+  } catch (error) {
+    console.error("Erreur de connexion MongoDB:", error);
+    return null;
+  }
 };
 
-export const getModelMetrics = (req, res) => {
-    const { model_name } = req.body;
-    if (!model_name) return res.status(400).json({ error: "Le paramètre 'model_name' est requis." });
-    
-    const pythonScriptPath = getPythonScriptPath('predict.py');
-    const pythonProcess = spawn('python', [pythonScriptPath, 'get_metrics', model_name]);
-
-    let dataString = '';
-    let errorString = '';
-
-    pythonProcess.stdout.on('data', (data) => dataString += data.toString());
-    pythonProcess.stderr.on('data', (data) => errorString += data.toString());
-
-    pythonProcess.on('close', (code) => {
-        if (code !== 0) {
-            console.error(`Erreur du script Python (metrics): ${errorString}`);
-            return res.status(500).json({ error: "Erreur récupération métriques.", details: errorString });
-        }
-        try {
-            res.status(200).json(JSON.parse(dataString));
-        } catch (e) {
-            res.status(500).json({ error: "Erreur parsing réponse (métriques)." });
-        }
-    });
+// Helper pour obtenir le chemin du script et du répertoire de travail
+const getScriptPaths = (scriptName) => {
+    const utilsDir = path.join(__dirname, '..', 'utils');
+    return {
+        scriptPath: path.join(utilsDir, scriptName),
+        // Le répertoire de travail est le dossier 'backend', où se trouve le .env
+        cwd: path.join(__dirname, '..') 
+    };
 };
 
-
-export const getModelEquation = (req, res) => {
-    const { model_name } = req.body;
-    if (!model_name) return res.status(400).json({ error: "Le paramètre 'model_name' est requis." });
-
-    const pythonScriptPath = getPythonScriptPath('predict.py');
-    const pythonProcess = spawn('python', [pythonScriptPath, 'get_equation', model_name]);
+// Fonction générique pour appeler un script Python et gérer la réponse
+const callPythonScript = (res, command, ...args) => {
+    const { scriptPath, cwd } = getScriptPaths('predict.py');
+    const pythonProcess = spawn('python', [scriptPath, command, ...args], { cwd });
 
     let dataString = '';
     let errorString = '';
 
     pythonProcess.stdout.on('data', (data) => {
         dataString += data.toString();
-        console.log('[PYTHON STDOUT][equation]', data.toString());
     });
     pythonProcess.stderr.on('data', (data) => {
         errorString += data.toString();
-        console.error('[PYTHON STDERR][equation]', data.toString());
     });
 
     pythonProcess.on('close', (code) => {
         if (code !== 0) {
-            console.error(`Erreur du script Python (equation): ${errorString}`);
-            return res.status(500).json({ error: "Erreur récupération équation.", details: errorString });
+            console.error(`--- ERREUR SCRIPT PYTHON [${command}] ---`);
+            console.error(`Code de sortie: ${code}`);
+            console.error(`Message d'erreur:\n${errorString}`);
+            console.error(`--- FIN ERREUR ---`);
+            return res.status(500).json({
+                error: `Le script Python a échoué pour la commande '${command}'.`,
+                details: errorString
+            });
         }
         try {
-
-            const lines = dataString.trim().split(/\r?\n/);
-            let lastJson = null;
-            for (let i = lines.length - 1; i >= 0; i--) {
-                try {
-                    lastJson = JSON.parse(lines[i]);
-                    break;
-                } catch {}
-            }
-            if (lastJson) {
-                res.status(200).json(lastJson);
-            } else {
-                res.status(500).json({ error: "Erreur parsing réponse (équation).", details: dataString });
-            }
+            res.status(200).json(JSON.parse(dataString));
         } catch (e) {
-            res.status(500).json({ error: "Erreur parsing réponse (équation).", details: dataString });
+            console.error(`Erreur de parsing JSON pour la commande '${command}':`, e);
+            res.status(500).json({
+                error: "Réponse invalide du script Python (pas un JSON valide).",
+                rawOutput: dataString
+            });
         }
     });
 };
 
 
-export const getVisualization = (req, res) => {
-  const { model, ligne, imputation: targetName } = req.query;
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
-
-  let modelFileNamePart;
-  let modelForPython;
-
-  const modelLower = model.toLowerCase();
-  if (modelLower.includes('randomforest')) {
-    modelFileNamePart = 'randomforestregressor';
-    modelForPython = 'random_forest';
-  } else if (modelLower.includes('gradientboosting')) {
-    modelFileNamePart = 'gradientboostingregressor';
-    modelForPython = 'gradient_boosting';
-  } else {
-    return res.status(400).json({ error: "Type de modèle non supporté." });
-  }
-
-
-  const targetForFilename = cleanTargetName(targetName);
-  const modelFileName = `${modelFileNamePart}_${ligne}_${targetForFilename}.joblib`;
-  const modelPath = path.join(__dirname, '..', 'utils', 'models', modelFileName);
-  
-  const dataImputationMethod = 'ffill'; 
-  const dataFileName = `Fusion_107${ligne}_KPIs_${dataImputationMethod}.xlsx`;
-  const dataPath = path.join(__dirname, '..', 'data', `ligne ${ligne}`, dataFileName);
-
-  if (!fs.existsSync(modelPath)) {
-    return res.status(404).json({
-        error: "Fichier du MODÈLE (.joblib) introuvable.",
-        details: `Le serveur a cherché ce fichier : ${modelPath}`
-    });
-  }
-  if (!fs.existsSync(dataPath)) {
-    return res.status(404).json({
-        error: "Fichier de DONNÉES (.xlsx) introuvable.",
-        details: `Le serveur a cherché ce fichier : ${dataPath}`
-    });
-  }
-
-  const pythonScriptPath = path.join(__dirname, '..', 'utils', 'visualize_tree.py');
-  
-
-
-  const pythonProcess = spawn('python', [pythonScriptPath, modelPath, dataPath, modelForPython, targetName]);
-
-  let imagePath = '';
-  pythonProcess.stdout.on('data', (data) => imagePath += data.toString());
-  pythonProcess.stderr.on('data', (data) => console.error(`Erreur stderr (visualisation): ${data}`));
-  
-  pythonProcess.on('close', (code) => {
-    if (code !== 0) {
-        return res.status(500).json({ error: "Le script Python a échoué. Vérifiez la console du backend." });
+export const getPrediction = (req, res) => {
+    const { model_name, features } = req.body;
+    if (!model_name || !features) {
+        return res.status(400).json({ error: "Les paramètres 'model_name' et 'features' sont requis." });
     }
-    const finalImagePath = imagePath.trim();
-    if (fs.existsSync(finalImagePath)) {
-        res.sendFile(path.resolve(finalImagePath));
-    } else {
-        res.status(404).json({ error: "Image générée mais introuvable." });
-    }
-  });
+    const featuresJsonString = JSON.stringify(features);
+    callPythonScript(res, 'predict', model_name, featuresJsonString);
 };
 
-export const getTreeData = (req, res) => {
-  const { model, ligne, imputation: targetName } = req.query;
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
-
-  let modelFileNamePart;
-  let modelForPython;
-
-  const modelLower = model.toLowerCase();
-  if (modelLower.includes('randomforest')) {
-    modelFileNamePart = 'randomforestregressor';
-    modelForPython = 'random_forest';
-  } else if (modelLower.includes('gradientboosting')) {
-    modelFileNamePart = 'gradientboostingregressor';
-    modelForPython = 'gradient_boosting';
-  } else {
-    return res.status(400).json({ error: "Ce type de modèle ne peut pas être visualisé comme un arbre." });
-  }
-
-
-  const targetForFilename = cleanTargetName(targetName);
-  const modelFileName = `${modelFileNamePart}_${ligne}_${targetForFilename}.joblib`;
-  const modelPath = path.join(__dirname, '..', 'utils', 'models', modelFileName);
-  
-  const dataImputationMethod = 'ffill';
-  const dataFileName = `Fusion_107${ligne}_KPIs_${dataImputationMethod}.xlsx`;
-  const dataPath = path.join(__dirname, '..', 'data', `ligne ${ligne}`, dataFileName);
-
-  if (!fs.existsSync(modelPath) || !fs.existsSync(dataPath)) {
-    return res.status(404).json({ error: "Le fichier modèle ou de données est introuvable pour cette sélection." });
-  }
-
-  const pythonScriptPath = path.join(__dirname, '..', 'utils', 'tree_to_json.py');
-  const pythonProcess = spawn('python', [pythonScriptPath, modelPath, dataPath, modelForPython]);
-
-  let jsonData = '';
-  let errorData = '';
-  pythonProcess.stdout.on('data', (data) => jsonData += data.toString());
-  pythonProcess.stderr.on('data', (data) => errorData += data.toString());
-  
-  pythonProcess.on('close', (code) => {
-    if (code !== 0) {
-        console.error(`Erreur du script Python (tree_to_json): ${errorData}`);
-        return res.status(500).json({ error: "Le script Python a échoué lors de l'extraction de l'arbre." });
+export const getModelFeatures = (req, res) => {
+    const { line } = req.body;
+    if (!line) {
+        return res.status(400).json({ error: "Le paramètre 'line' est requis." });
     }
-    try {
-        res.json(JSON.parse(jsonData));
-    } catch(e) {
-        res.status(500).json({ error: "Impossible de parser la structure JSON de l'arbre." });
+    callPythonScript(res, 'get_features', line);
+};
+
+export const getModelMetrics = (req, res) => {
+    const { model_name } = req.body;
+    if (!model_name) {
+        return res.status(400).json({ error: "Le paramètre 'model_name' est requis." });
     }
-  });
+    callPythonScript(res, 'get_metrics', model_name);
+};
+
+export const getModelEquation = (req, res) => {
+    const { model_name } = req.body;
+    if (!model_name) {
+        return res.status(400).json({ error: "Le paramètre 'model_name' est requis." });
+    }
+    callPythonScript(res, 'get_equation', model_name);
+};
+
+// --- Fonctions pour les courbes et graphiques (utilisent fs, pas de script Python) ---
+
+const cleanTargetName = (targetName) => {
+    return targetName
+        .replace(/\s+/g, '_')
+        .replace(/%/g, 'pct')
+        .replace(/-/g, '_');
+};
+
+const getModelFilePath = (modelName, fileSuffix) => {
+    // Cette fonction assume que les fichiers sont toujours stockés localement,
+    // ce qui n'est plus le cas. Elle doit être adaptée ou supprimée si ces routes
+    // doivent maintenant récupérer les données depuis MongoDB.
+    // Pour l'instant, nous laissons tel quel en supposant qu'elle pourrait être utilisée
+    // pour d'autres fonctionnalités.
+    const modelsDir = path.join(__dirname, '..', 'utils', 'models');
+    return path.join(modelsDir, `${modelName}${fileSuffix}`);
 };
 
 
+// predictionController.js - À MODIFIER
 
-
-export const getTreeShape = (req, res) => {
-  const { model, ligne, imputation: targetName } = req.query;
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
-
-  let modelFileNamePart;
-  let modelForPython;
-
-  const modelLower = model.toLowerCase();
-  if (modelLower.includes('randomforest')) {
-    modelFileNamePart = 'randomforestregressor';
-    modelForPython = 'random_forest';
-  } else if (modelLower.includes('gradientboosting')) {
-    modelFileNamePart = 'gradientboostingregressor';
-    modelForPython = 'gradient_boosting';
-  } else {
-    return res.status(400).json({ error: "Ce type de modèle n'a pas de forme d'arbre." });
-  }
-
-
-  const targetForFilename = cleanTargetName(targetName);
-  const modelFileName = `${modelFileNamePart}_${ligne}_${targetForFilename}.joblib`;
-  const modelPath = path.join(__dirname, '..', 'utils', 'models', modelFileName);
-
-  if (!fs.existsSync(modelPath)) {
-    return res.status(404).json({ error: "Fichier modèle introuvable." });
-  }
-
-  const pythonScriptPath = path.join(__dirname, '..', 'utils', 'get_tree_shape.py');
-  const pythonProcess = spawn('python', [pythonScriptPath, modelPath, modelForPython]);
-
-  let jsonData = '';
-  let errorData = '';
-  pythonProcess.stdout.on('data', (data) => jsonData += data.toString());
-  pythonProcess.stderr.on('data', (data) => errorData += data.toString());
-  
-  pythonProcess.on('close', (code) => {
-    if (code !== 0) {
-      console.error(`Erreur du script Python (get_tree_shape): ${errorData}`);
-      return res.status(500).json({ error: "Le script Python a échoué." });
-    }
-    try {
-      res.json(JSON.parse(jsonData));
-    } catch(e) {
-      res.status(500).json({ error: "Impossible de parser la réponse JSON." });
-    }
-  });
-};
-
-
-export const getAllTreeData = (req, res) => {
+export const getLearningCurveData = async (req, res) => {
   const { modelName, ligne, targetName } = req.query;
-
-  if (!modelName || !ligne || !targetName) {
-    return res.status(400).json({ error: 'Les paramètres modelName, ligne et targetName sont requis.' });
-  }
   
-
-  const modelFileNameBase = `${modelName.toLowerCase()}_${ligne}_${cleanTargetName(targetName)}`;
-  
-
-  const treesDataPath = path.join(
-    __dirname, 
-    '..', 
-    'utils', 
-    'models', 
-    `${modelFileNameBase}_trees_visualizations`, 
-    'all_trees_data.json' 
-  );
-
-  if (fs.existsSync(treesDataPath)) {
-    try {
-      const treesData = JSON.parse(fs.readFileSync(treesDataPath, 'utf-8'));
-      res.json(treesData);
-    } catch (error) {
-      res.status(500).json({ error: 'Erreur lors de la lecture du fichier des données des arbres.' });
+  try {
+    // Récupérer depuis MongoDB au lieu du système de fichiers
+    const client = get_mongodb_connection();
+    if (!client) {
+      return res.status(500).json({ error: "Connexion MongoDB échouée" });
     }
-  } else {
-
-    res.status(404).json({ error: `Fichier de visualisation introuvable pour ce modèle: ${treesDataPath}` });
+    
+    const db = client.db('107_DEF_KPI_dashboard');
+    const collection = db.collection('models');
+    
+    const cleanTargetName = targetName
+      .replace(/\s+/g, '_')
+      .replace(/%/g, 'pct')
+      .replace(/-/g, '_');
+    
+    const modelDocName = `${modelName.toLowerCase()}_${ligne}_${cleanTargetName}`;
+    const modelDoc = await collection.findOne({ name: modelDocName });
+    
+    if (!modelDoc || !modelDoc.learning_curve) {
+      return res.status(404).json({ error: "Courbe d'apprentissage non trouvée" });
+    }
+    
+    res.json(modelDoc.learning_curve);
+    
+  } catch (error) {
+    console.error("Erreur:", error);
+    res.status(500).json({ error: error.message });
   }
 };
 
-export const getLearningCurveData = (req, res) => {
-    const { modelName, ligne, targetName } = req.query;
-    if (!modelName || !ligne || !targetName) return res.status(400).json({ error: 'Paramètres manquants.' });
-
-
-    const modelFileNameBase = `${modelName.toLowerCase()}_${ligne}_${cleanTargetName(targetName)}`;
-    const lcDataPath = path.join(__dirname, '..', 'utils', 'models', `${modelFileNameBase}_learning_curve.json`);
-
-    if (fs.existsSync(lcDataPath)) {
-        res.sendFile(lcDataPath);
-    } else {
-        res.status(404).json({ error: `Fichier de la courbe d'apprentissage introuvable : ${lcDataPath}` });
-    }
-};
-
-export const getPredictionPlotData = (req, res) => {
+export const getPredictionPlotData = async (req, res) => {
   const { modelName } = req.query;
-
-  if (!modelName) {
-    return res.status(400).json({ error: 'Le paramètre modelName est requis.' });
-  }
   
-
-  const plotDataPath = path.join(
-    __dirname, 
-    '..', 
-    'utils', 
-    'models', 
-    `${modelName}_predictions.json` 
-  );
-
-  if (fs.existsSync(plotDataPath)) {
-    try {
-      const plotData = JSON.parse(fs.readFileSync(plotDataPath, 'utf-8'));
-      res.json(plotData);
-    } catch (error) {
-      res.status(500).json({ error: 'Erreur lors de la lecture du fichier des prédictions.' });
+  try {
+    // Récupérer depuis MongoDB
+    const client = get_mongodb_connection();
+    if (!client) {
+      return res.status(500).json({ error: "Connexion MongoDB échouée" });
     }
-  } else {
-    res.status(404).json({ error: `Fichier des prédictions introuvable : ${plotDataPath}` });
+    
+    const db = client.db('107_DEF_KPI_dashboard');
+    const collection = db.collection('models');
+    
+    const modelDoc = await collection.findOne({ name: modelName });
+    
+    if (!modelDoc || !modelDoc.predictions) {
+      return res.status(404).json({ error: "Données de prédiction non trouvées" });
+    }
+    
+    res.json(modelDoc.predictions);
+    
+  } catch (error) {
+    console.error("Erreur:", error);
+    res.status(500).json({ error: error.message });
   }
 };

@@ -178,7 +178,13 @@ def traiter_fusion(ligne, file1_content, file2_content):
     }
 
     # --- C. Créer le dictionnaire de mappage dynamique ---
-    header_mapping_dynamique = {key: value.replace("107D", f"107{ligne}") for key, value in header_mapping_template.items()}
+    def remplacer_ligne(valeur, ligne):
+        return re.sub(r'(?<=J_107DEF_)107D', f'107{ligne}', valeur)
+
+    header_mapping_dynamique = {
+    key: remplacer_ligne(value, ligne)
+    for key, value in header_mapping_template.items()
+    }
 
     # --- D. Logique de fusion ---
     colonnes_identiques_df1 = [

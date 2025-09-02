@@ -78,7 +78,7 @@ const handleFetchMetrics = async () => {
         setLoading(false);
     }
 };
-    
+/*    
     const handleShowTree = async () => {
         if (!target) return;
         setIsLoadingTree(true);
@@ -123,7 +123,7 @@ const handleFetchMetrics = async () => {
             setIsLoadingAllTrees(false);
         }
     };
-
+*/
     const handleTargetChange = (targetName: string) => {
         const foundTarget = TARGET_VARIABLES.find(t => t.name === targetName);
         if (foundTarget) setTarget(foundTarget);
@@ -228,7 +228,8 @@ const handleFetchMetrics = async () => {
                     <Button onClick={handleToggleImportanceChart} disabled={isLoadingImportance} variant="outline">
                         {isLoadingImportance ? 'Chargement...' : (showImportanceChart ? 'Cacher' : 'Afficher') + ' Poids des Variables'}
                     </Button>
-                    {(modelType === 'RandomForestRegressor' || modelType === 'GradientBoostingRegressor') && (
+                    
+                    {/*{(modelType === 'RandomForestRegressor' || modelType === 'GradientBoostingRegressor') && (
                         <>
                             {modelType === 'RandomForestRegressor' && (
                         <Button onClick={handleShowTree} disabled={isLoadingTree} variant="outline">
@@ -245,7 +246,7 @@ const handleFetchMetrics = async () => {
                 </Button>
             )}
                         </>
-                    )}
+                    )} */}
 
                     <Button onClick={handleShowLearningCurve} disabled={isLoadingLC} variant="outline">
                         {isLoadingLC ? 'Chargement...' : "Afficher Courbe d'Apprentissage"}

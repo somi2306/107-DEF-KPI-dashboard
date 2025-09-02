@@ -53,7 +53,7 @@ export const api = {
     if (response.data.error) throw new Error(response.data.error);
     return response.data;
   },
-
+/*
   getVisualization: async (modelType: string, line: string, imputation: string): Promise<Blob> => {
     const response = await axios.get(`${API_BASE_URL}/predictions/visualize`, {
       params: { model: modelType, ligne: line, imputation: imputation },
@@ -83,7 +83,7 @@ export const api = {
     if (response.data.error) throw new Error(response.data.error);
     return response.data;
   },
-
+*/
   getLearningCurveData: async (modelType: string, line: string, targetName: string): Promise<LearningCurveData> => {
     const response = await axios.get(`${API_BASE_URL}/predictions/learning-curve`, {
         params: { modelName: modelType, ligne: line, targetName: targetName }
@@ -141,6 +141,31 @@ getRelationStatistics: async (line: string, var1: string, var2: string): Promise
     const response = await axios.get(`${API_BASE_URL}/analysis/status`);
     return response.data;
   },
+    startTraining: async (): Promise<any> => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/training/start`);
+      return response.data;
+    } catch (error) {
+      console.error("Erreur lors du démarrage de l'entraînement:", error);
+      throw error;
+    }
+  },
+
+  getTrainingStatus: async (): Promise<{ status: string; message?: string; error?: string }> => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/training/status`);
+      return response.data;
+    } catch (error) {
+      console.error("Erreur lors de la récupération du statut de l'entraînement:", error);
+      throw error;
+    }
+  },
+  /*
+  getKpiData: async (): Promise<KpiData[]> => {
+    // CORRECTION : Utiliser API_BASE_URL pour pointer vers le bon endpoint de l'API backend
+    const response = await axios.get(`${API_BASE_URL}/kpidata`);
+    return response.data;
+  },*/
 };
 
 export const getRelations = async (line: string, var1: string, var2: string) => {
@@ -244,3 +269,4 @@ export const runFullPipelineInMemory = async (files: { [key: string]: File | nul
     throw new Error('Erreur de communication avec le serveur.');
   }
 };
+

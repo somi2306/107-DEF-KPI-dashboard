@@ -9,6 +9,18 @@ import traceback
 import re
 import subprocess
 from sklearn.model_selection import learning_curve
+from pymongo import MongoClient
+from dotenv import load_dotenv
+import warnings
+import io
+from bson.binary import Binary
+
+warnings.filterwarnings("ignore")
+
+# Configuration de l'encodage pour Windows
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
+
 # Import de TOUTES vos fonctions d'entraînement
 from regression_models.pretrain_linear import train_linear_regression
 from regression_models.pretrain_random_forest import train_random_forest
@@ -28,26 +40,26 @@ MODEL_TRAINERS = {
 
 # --- CONFIGURATION ---
 lines_to_pretrain = ['F', 'E', 'D']
-models_to_pretrain = list(MODEL_TRAINERS.keys())
+models_to_pretrain =  list(MODEL_TRAINERS.keys()) #['RandomForestRegressor'] 
 
 target_variables_to_pretrain = [
     ('TSP', "Cuve D'attaque (bouillie)", 'Densité bouillie'),
     ('TSP', "Cuve D'attaque (bouillie)", '%P2O5 TOT bouillie'),
-    ('TSP', "Cuve D'attaque (bouillie)", '%P2O5  SE bouillie'),
+    ('TSP', "Cuve D'attaque (bouillie)", '%P2O5  SE bouillie'),  # 2 espaces
     ('TSP', "Cuve D'attaque (bouillie)", '%Acide libre bouillie'),
     ('TSP', "Cuve D'attaque (bouillie)", '%H2O bouillie'),
     ('TSP', "Cuve D'attaque (bouillie)", '%CaO bouillie'),
-    ('TSP', 'Sortie granulateur', '%P2O5  SE+SC gran'),
+    ('TSP', 'Sortie granulateur', '%P2O5  SE+SC gran'),  # 2 espaces
     ('TSP', 'Sortie granulateur', '%P2O5 SE granu'),
     ('TSP', 'Sortie granulateur', '%Acide libre granul'),
     ('TSP', 'Sortie granulateur', '%P2O5 total granu'),
     ('TSP', 'Sortie granulateur', '%H2O tq granu'),
-    ('PRODUIT FINI TSP', 'Détermination ', '%P2O5  TOT PF'),
-    ('PRODUIT FINI TSP', 'Détermination ', '%P2O5  SE+SC PF'),
-    ('PRODUIT FINI TSP', 'Détermination ', '%H2O Tq PF'),
-    ('PRODUIT FINI TSP', 'Détermination ', '% AL  à l\'eau PF'),
-    ('PRODUIT FINI TSP', 'Détermination ', '% AL à l\'acetone PF'),
-    ('PRODUIT FINI TSP', 'Détermination ', '%P2O5 SE PF '),
+    ('PRODUIT FINI TSP', 'Détermination', '%P2O5  TOT PF'),  # 2 espaces
+    ('PRODUIT FINI TSP', 'Détermination', '%P2O5  SE+SC PF'),  # 2 espaces
+    ('PRODUIT FINI TSP', 'Détermination', '%H2O Tq PF'),
+    ('PRODUIT FINI TSP', 'Détermination', '% AL  à l\'eau PF'),  # 2 espaces
+    ('PRODUIT FINI TSP', 'Détermination', '% AL à l\'acetone PF'),
+    ('PRODUIT FINI TSP', 'Détermination', '%P2O5 SE PF'),
     ('PRODUIT FINI TSP', 'Granulométrie', '˃6,3mm'),
     ('PRODUIT FINI TSP', 'Granulométrie', '˃4,75mm'),
     ('PRODUIT FINI TSP', 'Granulométrie', '˃4mm'),
@@ -57,218 +69,375 @@ target_variables_to_pretrain = [
     ('PRODUIT FINI TSP', 'Granulométrie', '˃1mm'),
     ('PRODUIT FINI TSP', 'Granulométrie', '˃2,5-˃4mm'),
     ('PRODUIT FINI TSP', 'Granulométrie', '˃2-˃4mm')
+    
 ]
 
-
-
+# Liste des colonnes à exclure (adaptée à la structure MongoDB)
 exclude_cols = [
-    ('Unnamed: 0_level_0', 'Unnamed: 0_level_1', 'Unnamed: 0_level_2'),
-    ('Unnamed: 0_level_0', 'Unnamed: 0_level_1', 'Date c'),
-    ('107 F', 'Unnamed: 1_level_1', 'Mois'), 
-    ('107 F', 'Unnamed: 2_level_1', 'Date '),
-    ('107 F', 'Unnamed: 3_level_1', 'semaine'),
-    ('107 F', 'Unnamed: 3_level_1', 'Semaine'),
-    ('107 F', 'Unnamed: 4_level_1', 'Poste'),
-    ('107 F', 'Unnamed: 5_level_1', 'Heure'),
-#107E
-    ('107 E', 'Unnamed: 1_level_1', 'Mois'), 
-    ('107 E', 'Unnamed: 2_level_1', 'Date '),
-    ('107 E', 'Unnamed: 3_level_1', 'semaine'),
-    ('107 E', 'Unnamed: 3_level_1', 'Semaine'),
-    ('107 E', 'Unnamed: 4_level_1', 'Poste'),
-    ('107 E', 'Unnamed: 5_level_1', 'Heure'),
-#107D
-    ('107 D', 'Unnamed: 1_level_1', 'Mois'), 
-    ('107 D', 'Unnamed: 2_level_1', 'Date '),
-    ('107 D', 'Unnamed: 3_level_1', 'semaine'),
-    ('107 D', 'Unnamed: 3_level_1', 'Semaine'),
-    ('107 D', 'Unnamed: 4_level_1', 'Poste'),
-    ('107 D', 'Unnamed: 5_level_1', 'Heure'),
+    'source_line', 'heure', 'semaine', 'date_c', 'mois', 'date_num',
+    'imputation_method', 'poste', '107 D.Mois', '107 D.Date', 
+    '107 D.Semaine', '107 D.Poste', '107 D.Heure', '__v', 'createdAt',
+    'import_date', 'original_filenames.file1', 'original_filenames.file2',
+    'original_row_index', 'updatedAt',
+    '107 E.Mois', '107 E.Date', '107 E.Semaine', '107 E.Poste', '107 E.Heure',
+    '107 F.Mois', '107 F.Date', '107 F.semaine','107 F.Semaine', '107 F.Poste', '107 F.Heure',
+    'Valeurs.Nbr HM',
+    'Valeurs.Unnamed: 91_level_2',
+    'Valeurs.Unnamed: 92_level_2',
+    'Valeurs.J_107DEF_107DWI407_B.Production TSP balance T/H',
+    'Valeurs.J_107DEF_107EWI407_B.Production TSP balance T/H',
+    'Valeurs.J_107DEF_107FWI407_B.Production TSP balance T/H',
+    'Valeurs.Densité bouillie*(Débit bouillie M3/H 1+Débit bouillie M3/H 2)/1000.Débit bouillie T/H',
+    'Valeurs.(Recyclage T/H )/(Production TSP balance).Ratio recyclage /TSP',
+    'Valeurs.vide si (Débit PP)/(Production TSP balance) >10 et (Débit PP)/(Production TSP balance) sinon.CSP PP Kg/T',
+    'Valeurs.((Débit ACP 1+Débit ACP 2)*Densité AR29*%P₂O₅ AR29)/(Production TSP balance*100000).CSP ACP Kg/T',
+    'Valeurs.vide si  Débit fioul/Production TSP balance>100 et Débit fioul/Production TSP balance sinon.CSP Fioul Kg/T',
+    'Valeurs.%P2O5 SE PF si on a une valeur et la valeur précédant si %P2O5 SE PF =0.SE suivi CIV %',
+    'Valeurs."CIV" si SE suivi CIV> =41,5 et "SP" sinon.Qualité',
 
-    ('Valeurs', ' "CIV" si SE suivi CIV> =41,5 et "SP" sinon ', 'Qualité'),
-    ('Valeurs', 'J_107DEF_107FWI407_B', 'Production TSP balance T/H'),
-    ('Valeurs', 'J_107DEF_107EWI407_B', 'Production TSP balance T/H'),
-    ('Valeurs', 'J_107DEF_107DWI407_B', 'Production TSP balance T/H'),
-    ('Valeurs', 'Densité bouillie*(Débit bouillie M3/H 1+Débit bouillie M3/H 2)/1000', 'Débit bouillie T/H'),
-    ('Valeurs', '(Recyclage T/H )/(Production TSP balance)', 'Ratio recyclage /TSP'),
-    ('Valeurs', 'vide si (Débit PP)/(Production TSP balance) >10 et (Débit PP)/(Production TSP balance) sinon', 'CSP PP Kg/T'),
-    ('Valeurs', '((Débit ACP 1+Débit ACP 2)*Densité AR29*%P₂O₅ AR29)/(Production TSP balance*100000)', 'CSP ACP Kg/T'),
-    ('Valeurs', 'vide si  Débit fioul/Production TSP balance>100 et Débit fioul/Production TSP balance sinon', 'CSP Fioul Kg/T'),
-    ('Valeurs', ' %P2O5 SE PF si on a une valeur et la valeur précédant si %P2O5 SE PF =0', 'SE suivi CIV %'),
-    ('Valeurs', ' ', 'Nbr HM'),
-    ('Valeurs', ' ', 'Unnamed: 91_level_2'),
-    ('Valeurs', ' ', 'Unnamed: 92_level_2'),
 ]
 
+# Configuration MongoDB
+def get_mongodb_connection():
+    """Établit une connexion à MongoDB Atlas"""
+    load_dotenv()
+    try:
+        mongodb_uri = os.getenv('MONGODB_URI')
+        if not mongodb_uri:
+            raise ValueError("MONGODB_URI non trouvée dans les variables d'environnement")
+        
+        client = MongoClient(mongodb_uri)
+        client.admin.command('ping')
+        print("Connecté à MongoDB Atlas avec succès")
+        return client
+    except Exception as e:
+        print(f"Erreur de connexion MongoDB: {e}")
+        return None
 
+def load_data_from_mongodb(line, imputation_methods=['mean', 'median', 'mode', 'ffill']):
+    """Charge les données depuis MongoDB pour une ligne spécifique et toutes les méthodes d'imputation"""
+    client = get_mongodb_connection()
+    if not client:
+        return None
+    
+    try:
+        db_name = '107_DEF_KPI_dashboard'
+        db = client[db_name]
+        collection = db['kpidatas']
+        
+        line_letter = line.replace('107', '')  # Transforme "107D" en "D"
+        dfs = []
+        
+        for method in imputation_methods:
+            query = {
+                'source_line': line_letter,
+                'imputation_method': method
+            }
+            documents = list(collection.find(query))
+            
+            if not documents:
+                print(f"Aucune donnée trouvée pour la ligne {line_letter} avec la méthode '{method}'")
+                continue
+            
+            print(f"{len(documents)} documents récupérés pour la ligne {line_letter} (méthode: {method})")
+            
+            # Convertir en DataFrame
+            df_method = pd.DataFrame(documents)
+            
+            # Supprimer les colonnes de métadonnées
+            metadata_cols = ['_id', 'source_line', 'import_date', 'original_filenames', 
+                           'imputation_method', 'original_row_index', 'date_c', 'mois', 
+                           'date_num', 'semaine', 'poste', 'heure', 'createdAt', 'updatedAt', '__v']
+            
+            df_method = df_method.drop(columns=[col for col in metadata_cols if col in df_method.columns], errors='ignore')
+            
+            # Développer les colonnes imbriquées
+            df_expanded = expand_nested_columns(df_method)
+            
+            # Exclure les colonnes spécifiées
+            columns_to_drop = [col for col in exclude_cols if col in df_expanded.columns]
+            if columns_to_drop:
+                df_expanded = df_expanded.drop(columns=columns_to_drop, errors='ignore')
+                print(f"Colonnes exclues: {len(columns_to_drop)}")
+            
+            dfs.append(df_expanded)
+        
+        client.close()
+        
+        if not dfs:
+            print(f"Aucune donnée valide trouvée pour la ligne {line}")
+            return None
+        
+        # Combiner toutes les données
+        combined_df = pd.concat(dfs, ignore_index=True)
+        if combined_df is not None:
+            print("Colonnes disponibles dans le DataFrame:")
+            for col in sorted(combined_df.columns):
+                print(f"  - {col}")
+        print(f"DataFrame combiné: {combined_df.shape}")
+        
+        # Nettoyer les données
+        combined_df = clean_dataframe(combined_df)
+        
+        return combined_df
+        
+    except Exception as e:
+        print(f"Erreur lors du chargement depuis MongoDB: {e}")
+        traceback.print_exc()
+        return None
+
+def expand_nested_columns(df):
+    """Développe les colonnes contenant des dictionnaires"""
+    expanded_dfs = []
+    for col in df.columns:
+        if df[col].apply(lambda x: isinstance(x, dict)).any():
+            try:
+                expanded = pd.json_normalize(df[col])
+                expanded.columns = [f"{col}.{subcol}" for subcol in expanded.columns]
+                expanded_dfs.append(expanded)
+            except:
+                # Si la normalisation échoue, garder la colonne originale
+                expanded_dfs.append(df[[col]])
+        else:
+            expanded_dfs.append(df[[col]])
+    
+    if expanded_dfs:
+        return pd.concat(expanded_dfs, axis=1)
+    else:
+        return df
+
+def clean_dataframe(df):
+    """Nettoie le DataFrame en convertissant les colonnes numériques"""
+    print("Nettoyage des données...")
+    
+    # Identifier les colonnes qualitatives (à ne pas convertir)
+    qualitative_cols = [
+        'Valeurs."CIV" si SE suivi CIV> =41,5 et "SP" sinon.Qualité',
+        'Valeurs.Qualité'
+    ]
+    
+    # Convertir les colonnes numériques
+    numeric_cols = [col for col in df.columns if col not in qualitative_cols]
+    
+    for col in numeric_cols:
+        if col in df.columns:
+            # Remplacer les valeurs problématiques
+            df[col] = df[col].replace(['**', '--', '', 'NaN', 'nan', 'NULL', 'null'], np.nan)
+            
+            # Convertir en numérique
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+    
+    # Supprimer les colonnes avec trop de valeurs manquantes
+    threshold = 0.8  # Supprimer les colonnes avec plus de 80% de valeurs manquantes
+    cols_to_drop = df.columns[df.isnull().mean() > threshold]
+    if len(cols_to_drop) > 0:
+        print(f"Colonnes avec trop de NaN supprimées: {len(cols_to_drop)}")
+        df = df.drop(columns=cols_to_drop)
+    
+    # Remplir les valeurs manquantes restantes
+    df = df.fillna(df.mean(numeric_only=True))
+    df = df.fillna(0)  # Pour les colonnes non numériques
+    
+    print(f"Données nettoyées: {df.shape}")
+    return df
 
 def normalize_name(name_parts):
     if isinstance(name_parts, str):
         return re.sub(r'\s+', ' ', name_parts).strip()
-    cleaned_parts = [re.sub(r'\s+', ' ', str(part).strip()) for part in name_parts]
+    
+    # Garder les espaces exacts tels qu'ils sont dans la base de données
+    cleaned_parts = [str(part).strip() for part in name_parts]
     return '.'.join(cleaned_parts)
 
-def load_and_process_data(line):
-    sys.stderr.write(f"Début du chargement et traitement des données pour la ligne {line}\n")
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    data_base_dir = os.path.join(script_dir, '..', 'data', f"ligne {line}")
-    if not os.path.isdir(data_base_dir): return None
-    imputation_methods = ['mean', 'median', 'mode', 'ffill']
-    dfs = []
-    
+def save_model_to_db(client, model_data):
+    """Sauvegarde ou met à jour un modèle dans MongoDB."""
     try:
-        # Rendre la liste d'exclusion dynamique pour la ligne
-        dynamic_exclude_cols = []
-        for col_tuple in exclude_cols:
-            new_tuple = list(col_tuple)
-            if '107 F' in new_tuple[0]:
-                new_tuple[0] = f'107 {line}'
-            dynamic_exclude_cols.append(tuple(new_tuple))
-
-        for method in imputation_methods:
-            file_path = os.path.join(data_base_dir, f"Fusion_107{line}_KPIs_{method}.xlsx")
-            if not os.path.exists(file_path): continue
-            df_temp = pd.read_excel(file_path, header=[0, 1, 2])
-            df_temp = df_temp.drop(columns=dynamic_exclude_cols, errors='ignore').drop(df_temp.columns[0], axis=1, errors='ignore').iloc[1:].reset_index(drop=True)
-            df_temp = df_temp.apply(pd.to_numeric, errors='coerce')
-            if method == "mean": df_temp = df_temp.fillna(df_temp.mean(numeric_only=True))
-            elif method == "median": df_temp = df_temp.fillna(df_temp.median(numeric_only=True))
-            elif method == "mode": df_temp = df_temp.fillna(df_temp.mode(numeric_only=True).iloc[0])
-            elif method == "ffill": df_temp = df_temp.ffill().bfill()
-            df_temp = df_temp.fillna(0)
-            dfs.append(df_temp)
-        if not dfs: return None
-        combined_df = pd.concat(dfs, ignore_index=True)
-        combined_df.columns = [normalize_name(col) for col in combined_df.columns]
-        return combined_df
+        db = client['107_DEF_KPI_dashboard']
+        collection = db['models']
+        
+        # Utiliser 'name' comme clé unique pour la mise à jour
+        query = {'name': model_data['name']}
+        
+        # Utiliser $set pour mettre à jour les champs et upsert=True pour insérer si non existant
+        update = {'$set': model_data}
+        
+        result = collection.update_one(query, update, upsert=True)
+        
+        if result.upserted_id is not None:
+            print(f"Modèle '{model_data['name']}' inséré avec succès.")
+        else:
+            print(f"Modèle '{model_data['name']}' mis à jour avec succès.")
+            
     except Exception as e:
+        print(f"Erreur lors de la sauvegarde du modèle '{model_data['name']}' dans MongoDB: {e}")
         traceback.print_exc()
-        return None
 
-def train_model_from_df(df, line, model_type, target_col):
+def train_model_from_df(df, line, model_type, target_col, mongo_client):
     try:
         target_col_name = normalize_name(target_col)
         if target_col_name not in df.columns: 
             return {"error": f"Colonne cible '{target_col_name}' non trouvée"}
+        
+        print(f"Entraînement sur la cible: {target_col_name}")
 
         blacklist_features = {normalize_name(col) for col in target_variables_to_pretrain}
+        
         correlation_matrix = df.corr(numeric_only=True)
         correlations = correlation_matrix[target_col_name]
-        features = [feat for feat, corr in correlations.items() if corr > 0 and feat != target_col_name and feat not in blacklist_features]
-        if not features: return {"error": "Aucune feature valide trouvée après filtrage."}
+        
+        features = [feat for feat, corr in correlations.items() 
+                   if abs(corr) > 0 and feat != target_col_name and feat not in blacklist_features]
+        
+        if not features: 
+            return {"error": "Aucune feature valide trouvée après filtrage."}
+        
+        print(f"{len(features)} features sélectionnées")
 
         X = df[features]
         y = df[target_col_name]
+        
         X = X.replace([np.inf, -np.inf], np.nan).fillna(X.mean())
         y = y.replace([np.inf, -np.inf], np.nan).fillna(y.mean())
+        
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         
         trainer = MODEL_TRAINERS.get(model_type)
-        if not trainer: return {"error": "Type de modèle invalide"}
+        if not trainer: 
+            return {"error": "Type de modèle invalide"}
         
         model, metrics, scalers = trainer(X_train, y_train, X_test, y_test)
         
-        model_dir = os.path.join(os.path.dirname(__file__), 'models')
-        os.makedirs(model_dir, exist_ok=True)
+        # --- NOUVEAU: Sauvegarde dans MongoDB ---
+        
         clean_target_name = re.sub(r'\s+', '_', target_col[-1])
         model_name = f"{model_type.lower()}_{line}_{clean_target_name.replace('%', 'pct').replace('-', '_')}"
         
-        joblib.dump(model, os.path.join(model_dir, f"{model_name}.joblib"))
-        
-        data_to_save = {'features': features}
-        if scalers: data_to_save['scalers'] = scalers
-        joblib.dump(data_to_save, os.path.join(model_dir, f"{model_name}_data.joblib"))
-        
-        metrics_path = os.path.join(model_dir, f"{model_name}_metrics.json")
-        with open(metrics_path, 'w') as f:
-            serializable_metrics = {k: float(v) for k, v in metrics.items()}
-            json.dump(serializable_metrics, f, indent=4)
-        
+        # Sérialiser le modèle et les données en mémoire
+        model_buffer = io.BytesIO()
+        joblib.dump(model, model_buffer)
+        model_buffer.seek(0)
 
+        data_to_save = {'features': features}
+        if scalers: 
+            data_to_save['scalers'] = scalers
+        data_buffer = io.BytesIO()
+        joblib.dump(data_to_save, data_buffer)
+        data_buffer.seek(0)
+        
+        serializable_metrics = {k: float(v) for k, v in metrics.items()}
+
+        learning_curve_data = None
         try:
             train_sizes, train_scores, test_scores = learning_curve(
                 model, X, y, cv=5, n_jobs=-1,
                 train_sizes=np.linspace(0.1, 1.0, 5),
                 scoring='neg_mean_squared_error'
             )
-
-            train_scores_mean = -np.mean(train_scores, axis=1)
-            test_scores_mean = -np.mean(test_scores, axis=1)
-
             learning_curve_data = {
                 'train_sizes_abs': train_sizes.tolist(),
-                'train_scores_mean': train_scores_mean.tolist(),
-                'validation_scores_mean': test_scores_mean.tolist(),
+                'train_scores_mean': (-np.mean(train_scores, axis=1)).tolist(),
+                'validation_scores_mean': (-np.mean(test_scores, axis=1)).tolist(),
             }
-
-            lc_path = os.path.join(model_dir, f"{model_name}_learning_curve.json")
-            with open(lc_path, 'w') as f:
-                json.dump(learning_curve_data, f, indent=4)
-            sys.stderr.write(f"Données de la courbe d'apprentissage sauvegardées pour {model_name}\n")
-
         except Exception as lc_error:
-            sys.stderr.write(f"AVERTISSEMENT: Impossible de générer la courbe d'apprentissage pour {model_name}: {lc_error}\n")
+            print(f"Impossible de générer la courbe d'apprentissage: {lc_error}")
 
+        prediction_data = None
         try:
             y_pred = model.predict(X_test)
-            
             y_real_final = y_test.values
             y_pred_final = y_pred
-
             if scalers and 'y' in scalers:
                 scaler_y = scalers['y']
                 y_real_final = scaler_y.inverse_transform(y_test.values.reshape(-1, 1)).flatten()
                 y_pred_final = scaler_y.inverse_transform(y_pred.reshape(-1, 1)).flatten()
-            
             prediction_data = {
                 'real_values': y_real_final.tolist(),
                 'predicted_values': y_pred_final.tolist(),
             }
-
-            pred_path = os.path.join(model_dir, f"{model_name}_predictions.json")
-            with open(pred_path, 'w') as f:
-                json.dump(prediction_data, f, indent=4)
-            sys.stderr.write(f"Données de prédiction sauvegardées pour {model_name}\n")
-            sys.stderr.write(
-    f"Target: {target_col[-1]} | "
-    f"Real values range: [{min(y_real_final):.2f}, {max(y_real_final):.2f}] | "
-    f"Predicted range: [{min(y_pred_final):.2f}, {max(y_pred_final):.2f}]\n"
-)
         except Exception as pred_error:
-            sys.stderr.write(f"AVERTISSEMENT: Impossible de sauvegarder les données de prédiction pour {model_name}: {pred_error}\n")
+            print(f"Impossible de sauvegarder les prédictions: {pred_error}")
 
+        # Préparer le document pour MongoDB
+        model_document = {
+            'name': model_name,
+            'line': line,
+            'target_variable': target_col[-1],
+            'model_type': model_type,
+            'model_file': Binary(model_buffer.read()),
+            'data_file': Binary(data_buffer.read()),
+            'metrics': serializable_metrics,
+            'learning_curve': learning_curve_data,
+            'predictions': prediction_data,
+        }
 
-        if model_type in ['GradientBoostingRegressor', 'RandomForestRegressor']:
-            try:
-                viz_output_dir = os.path.join(model_dir, f"{model_name}_trees_visualizations")
-                visualize_script_path = os.path.join(os.path.dirname(__file__), 'visualize_all_trees.py')
-                subprocess.run([
-                    sys.executable,
-                    visualize_script_path,
-                    os.path.join(model_dir, f"{model_name}.joblib"),
-                    ",".join(features),
-                    viz_output_dir
-                ], check=True, capture_output=True, text=True)
-                sys.stderr.write(f"Visualisations des arbres sauvegardées dans {viz_output_dir}\n")
-            except subprocess.CalledProcessError as e:
-                sys.stderr.write(f"Erreur lors de la visualisation des arbres pour {model_name}:\n")
-                sys.stderr.write(e.stderr + "\n")
+        # Sauvegarder dans la base de données
+        save_model_to_db(mongo_client, model_document)
+        # Visualisation des arbres (pour les modèles d'arbres)
 
+# on commente cette partie car elle n'est plus nécessaire
+# if model_type in ['GradientBoostingRegressor', 'RandomForestRegressor']:
+#     try:
+#         viz_output_dir = os.path.join(model_dir, f"{model_name}_trees_visualizations")
+#         visualize_script_path = os.path.join(os.path.dirname(__file__), 'visualize_all_trees.py')
+        
+#         subprocess.run([
+#             sys.executable,
+#             visualize_script_path,
+#             os.path.join(model_dir, f"{model_name}.joblib"),
+#             ",".join(features),
+#             viz_output_dir
+#         ], check=True, capture_output=True, text=True)
+        
+#         print("Visualisations des arbres sauvegardées")
+        
+#     except subprocess.CalledProcessError as e:
+#         print(f"Erreur lors de la visualisation des arbres: {e.stderr}")
+     
         return metrics
+        
     except Exception as e:
         traceback.print_exc()
         return {"error": str(e)}
 
+def format_metric_value(value, default="N/A"):
+    """Formate une valeur métrique en toute sécurité"""
+    if isinstance(value, (int, float, np.number)):
+        return f"{value:.4f}"
+    else:
+        return default
+
 if __name__ == '__main__':
+    mongo_client = get_mongodb_connection()
+    if not mongo_client:
+        sys.exit("Impossible de se connecter à MongoDB. Arrêt du script.")
+
     for line in lines_to_pretrain:
-        sys.stderr.write(f"\n--- Pré-entraînement pour la Ligne {line} ---\n")
-        combined_df = load_and_process_data(line)
-        if combined_df is None: continue
+        print(f"\n{'='*60}")
+        print(f"PRÉ-ENTRAÎNEMENT POUR LA LIGNE {line}")
+        print(f"{'='*60}")
+        
+        combined_df = load_data_from_mongodb(f"107{line}")
+        
+        if combined_df is None:
+            print(f"Impossible de charger les données pour la ligne {line}")
+            continue
+        
+        print(f"Données chargées: {combined_df.shape}")
+        
         for model_type in models_to_pretrain:
             for target_col in target_variables_to_pretrain:
-                sys.stderr.write(f"\nPré-entraînement Modèle {model_type}, Cible: {target_col[-1]}\n")
-                result = train_model_from_df(combined_df.copy(), line, model_type, target_col)
+                print(f"\nMODÈLE: {model_type}, CIBLE: {target_col[-1]}")
+                
+                result = train_model_from_df(combined_df.copy(), line, model_type, target_col, mongo_client)
+                
                 if "error" in result:
-                    sys.stderr.write(f"Erreur lors de l'entraînement: {result['error']}\n")
+                    print(f"Erreur: {result['error']}")
                 else:
-                    sys.stderr.write(f"Entraînement réussi. R² Score: {result['r2_score']:.4f}\n")
+                    r2_score = format_metric_value(result.get('r2_score'))
+                    mse = format_metric_value(result.get('mse'))
+                    mae = format_metric_value(result.get('mae'))
+                    
+                    print(f"Succès! R²: {r2_score}, MSE: {mse}, MAE: {mae}")
+    
+    mongo_client.close()
+    print(f"\nPRÉ-ENTRAÎNEMENT TERMINÉ!")

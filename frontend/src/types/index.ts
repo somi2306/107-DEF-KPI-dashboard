@@ -308,3 +308,9 @@ export interface RelationData {
   data: any;
   chart_data?: any;
 }
+
+/*
+export interface KpiData {
+  [key: string]: any;
+}
+  */

@@ -9,7 +9,7 @@ type HeaderProps = {
 };
 
 export const Header: React.FC<HeaderProps> = ({ activePage, setActivePage }) => {
-  const { isAnalysisRunning } = useAnalysis();
+  const { isAnalysisRunning, isTrainingRunning } = useAnalysis();
 
   const NavLink = ({ pageName, children, disabled = false }: { pageName: string; children: React.ReactNode; disabled?: boolean }) => (
     <button
@@ -39,21 +39,23 @@ export const Header: React.FC<HeaderProps> = ({ activePage, setActivePage }) => 
 
           <div className="flex items-center">
             <div className="flex items-center space-x-4">
-              <NavLink pageName="prediction">Prédiction</NavLink>
-              <NavLink pageName="metrics">Métrique de Performance</NavLink>
+              <NavLink pageName="hierarchical-data">Données Hiérarchiques</NavLink>
+              <NavLink pageName="prediction" disabled={isTrainingRunning}>Prédiction</NavLink>
+              <NavLink pageName="metrics" disabled={isTrainingRunning}>Métrique de Performance</NavLink>
               <NavLink pageName="statistics" disabled={isAnalysisRunning}>
                 Statistiques
               </NavLink>
-              <NavLink pageName="nettoyage">Fusion</NavLink> 
+              <NavLink pageName="nettoyage">Fusion</NavLink>
+              <NavLink pageName="entrainement">Entrainement</NavLink>
+              
+              
+              
+
             </div>
-
-
             <div className="ml-4">
               <NotificationBell />
             </div>
-
           </div>
-
         </div>
       </nav>
     </header>

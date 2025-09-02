@@ -95,22 +95,7 @@ export const PredictionPage: React.FC = () => {
         }
     };
     
-    const handleVisualization = async () => {
-        if (!target) return;
-        setIsLoadingVis(true);
-        setVisualization(null);
-        setErrorVis(null);
-        try {
-            const imageBlob = await api.getVisualization(modelType, line, target.name);
-            const imageUrl = URL.createObjectURL(imageBlob);
-            setVisualization(imageUrl);
-        } catch (error: any) {
-            console.error("Erreur lors de la récupération de la visualisation:", error);
-            setErrorVis("Impossible de charger la visualisation.");
-        } finally {
-            setIsLoadingVis(false);
-        }
-    };
+
     const handleTargetChange = (targetName: string) => {
         const foundTarget = TARGET_VARIABLES.find(t => t.name === targetName);
         if (foundTarget) {
@@ -196,11 +181,7 @@ export const PredictionPage: React.FC = () => {
                         <div className="flex gap-4 mt-6">
                             <Button className="w-full bg-emerald-500 hover:bg-emerald-600 text-white" type="submit" disabled={loading}>{loading ? 'Calcul en cours...' : 'Obtenir la Prédiction'}</Button>
                             
-                            {(modelType === 'RandomForestRegressor' || modelType === 'GradientBoostingRegressor') && (
-                                <Button type="button" onClick={handleVisualization} disabled={isLoadingVis} variant="outline">
-                                    {isLoadingVis ? 'Génération...' : 'Visualiser un Arbre'}
-                                </Button>
-                            )}
+                            
                         </div>
                     </form>
                 )}
