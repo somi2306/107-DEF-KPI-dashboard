@@ -4,7 +4,9 @@ import dotenv from 'dotenv';
 import { connectDB } from './lib/db.js';
 import http from 'http'; 
 import { Server } from 'socket.io'; 
-
+import path from 'path';
+import { fileURLToPath } from 'url';
+import helmet from 'helmet';
 import predictionRoutes from './routes/predictionRoutes.js';
 import statisticsRoutes from './routes/statisticsRoutes.js';
 import cleaningRoutes from './routes/cleaningRoutes.js';
@@ -30,6 +32,9 @@ const io = new Server(server, {
     methods: ["GET", "POST"]
   }
 });
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // --- GESTION DE L'ÉTAT GLOBAL ---
 export let analysisStatus = 'idle';
@@ -57,10 +62,6 @@ io.on('connection', (socket) => {
   });
 });
 
-
-
-
-
 // --- MIDDLEWARES ---
 app.use(cors({
   origin: "http://localhost:5173", // Votre URL frontend
@@ -69,10 +70,13 @@ app.use(cors({
 app.use(express.json())
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(clerkMiddleware())
+app.use(helmet());
+
 // --- Définition des points d'accès de l'API ---
-app.use("/api/users",userRoutes)
+
+app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
-app.use("/api/admin",adminRoutes)
+app.use("/api/admin", adminRoutes);
 app.use('/api/predictions', predictionRoutes);
 app.use('/api/stats', statisticsRoutes);
 app.use('/api/notifications', notificationRoutes);
@@ -88,6 +92,25 @@ app.get('/api/analysis/status', (req, res) => {
 app.get('/', (req, res) => {
   res.send('API du serveur de traitement de données est en cours d\'exécution.');
 });
+
+// --- Servir les fichiers statiques du frontend en production ---
+
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(path.join(__dirname, "../frontend/dist")));
+
+  // Catch-all pour toutes les routes non gérées
+  app.use((req, res) => {
+    res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
+  });
+}
+
+
+if (process.env.NODE_ENV === 'production') {
+  console.log = () => {};
+  console.info = () => {};
+  console.debug = () => {};
+  // Gardez console.warn et console.error actifs pour les avertissements et erreurs importants
+}
 
 // --- Démarrage du serveur ---
 const startServer = async () => {
