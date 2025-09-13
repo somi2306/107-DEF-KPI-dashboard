@@ -1,24 +1,8 @@
 # Fichiers et dossiers à ignorer
 .env
-.npmrc
-.DS_Store
-
-# Dossiers d'IDE et de configuration locaux
-.idea/
-.vscode/
-
-# Dossiers de dépendances et de builds
-node_modules/
-.venv/
-dist/
-build/
-
-# Fichiers de log et de cache
-*.log
-npm-debug.log
-
-# Fichiers et dossiers à ignorer
-.env
+*.env
+backend/.env
+frontend/.env
 .npmrc
 .DS_Store
 
@@ -36,7 +20,25 @@ build/
 *.log
 npm-debug.log*
 
+# Python
+__pycache__/
+*.pyc
+backend/src/utils/__pycache__/
+backend/src/utils/regression_models/__pycache__/
+
 # Dossiers de données
-/backend/data/
-/backend/src/utils/stats/
-/backend/upload/
+# Ignorer le contenu mais pas les dossiers
+/backend/src/data/*
+!/backend/src/data/.gitkeep
+
+/backend/src/utils/stats/*
+!/backend/src/utils/stats/.gitkeep
+
+/backend/stats/*
+!/backend/stats/.gitkeep
+
+/backend/src/uploads/*
+!/backend/src/uploads/.gitkeep
+
+/backend/src/utils/models/*
+!/backend/src/utils/models/.gitkeep

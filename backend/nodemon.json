@@ -1,0 +1,8 @@
+{
+  "verbose": true,
+  "watch": ["src/"],
+  "ignore": [
+    "src/utils/stats/*",
+    "src/utils/models/*"
+  ]
+}
