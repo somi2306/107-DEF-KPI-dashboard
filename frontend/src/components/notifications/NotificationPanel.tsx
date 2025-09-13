@@ -1,4 +1,3 @@
-import React from 'react';
 import { useNotifications } from '../../providers/NotificationProvider';
 import { CheckCircle2, XCircle, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';

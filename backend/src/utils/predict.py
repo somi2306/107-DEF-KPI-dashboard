@@ -1,3 +1,4 @@
+import numpy as np
 import sys
 import joblib
 import json
@@ -8,6 +9,9 @@ import io
 import numpy as np
 from pymongo import MongoClient
 from dotenv import load_dotenv
+from sklearn.linear_model import LinearRegression, Lasso, Ridge
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+            
 
 # Configuration MongoDB
 def get_mongodb_connection():
@@ -23,14 +27,14 @@ def get_mongodb_connection():
         
         return client
     except Exception as e:
-        print(f"Erreur de connexion MongoDB: {e}")
+        print(f"Erreur de connexion MongoDB: {e}", file=sys.stderr)
         return None
 
 def load_data_from_mongodb_for_features(line, imputation_methods=['mean', 'median', 'mode', 'ffill']):
     """Charge les données depuis MongoDB pour extraire les features"""
     client = get_mongodb_connection()
     if not client:
-        return None
+        return {"error": "Erreur de connexion à MongoDB"}
     
     try:
         db_name = '107_DEF_KPI_dashboard'
@@ -41,8 +45,8 @@ def load_data_from_mongodb_for_features(line, imputation_methods=['mean', 'media
         documents = list(collection.find({'source_line': line_letter}))
         
         if not documents:
-            print(f"Aucune donnée trouvée pour la ligne {line_letter}")
-            return None
+            print(f"Aucune donnée trouvée pour la ligne {line_letter}", file=sys.stderr)
+            return {"error": f"Aucune donnée trouvée pour la ligne {line_letter}"}
         
         # Convertir en DataFrame
         df = pd.DataFrame(documents)
@@ -73,9 +77,9 @@ def load_data_from_mongodb_for_features(line, imputation_methods=['mean', 'media
         return df
         
     except Exception as e:
-        print(f"Erreur lors du chargement depuis MongoDB: {e}")
-        traceback.print_exc()
-        return None
+        print(f"Erreur lors du chargement depuis MongoDB: {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        return {"error": str(e), "traceback": traceback.format_exc()}
     finally:
         if client:
             client.close()
@@ -193,40 +197,144 @@ def get_model_from_db(client, model_name):
 
 # --- Fonctions principales (adaptées pour MongoDB) ---
 
+# Dans predict.py, ajoutez cette fonction avant la fonction predict()
+def bootstrap_confidence_interval(model, X_train, n_bootstrap=100, alpha=0.05):
+    """
+    Calcule l'intervalle de confiance par bootstrap pour les modèles d'arbres.
+    X_train doit être les données d'entraînement non-normalisées.
+    """
+    try:
+        bootstrap_predictions = []
+        
+        if isinstance(X_train, pd.DataFrame):
+            X_train_np = X_train.values
+        else:
+            X_train_np = np.array(X_train)
+            
+        n_samples = X_train_np.shape[0]
+
+        for _ in range(n_bootstrap):
+            indices = np.random.choice(n_samples, size=n_samples, replace=True)
+            X_bootstrap = X_train_np[indices]
+            
+            # Pour une seule prédiction, on s'attend à une valeur moyenne du bootstrap
+            pred = model.predict(X_bootstrap)
+            bootstrap_predictions.append(np.mean(pred))
+        
+        lower_bound = np.percentile(bootstrap_predictions, (alpha/2) * 100)
+        upper_bound = np.percentile(bootstrap_predictions, (1 - alpha/2) * 100)
+        
+        return lower_bound, upper_bound
+        
+    except Exception as e:
+        print(f"Erreur dans bootstrap_confidence_interval: {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        return None, None
+
 def predict(model_name, all_input_data):
-    """Effectue une prédiction en chargeant le modèle depuis MongoDB."""
+    """
+    Effectue une prédiction et tente de calculer un intervalle de confiance 
+    adapté au type de modèle.
+    """
     client = get_mongodb_connection()
     if not client:
         return {"error": "Connexion à MongoDB échouée"}
     
     try:
-        model, training_data, _ = get_model_from_db(client, model_name)
-        
+        model, training_data, model_doc = get_model_from_db(client, model_name)
         if model is None:
-            return {"error": f"Modèle '{model_name}' non trouvé dans la base de données."}
+            return {"error": f"Modèle '{model_name}' non trouvé."}
 
         features_needed = training_data.get('features', [])
+        # Assurer que l'ordre des colonnes est le même que pendant l'entraînement
+        input_df = pd.DataFrame([all_input_data], columns=features_needed)
         
-        # Filtrer et ordonner les données d'entrée selon les besoins du modèle
-        filtered_input_data = {feat: all_input_data.get(feat, 0) for feat in features_needed}
-        input_df = pd.DataFrame([filtered_input_data], columns=features_needed) # Assure le bon ordre
-
+        # --- Étape 1: Obtenir la prédiction ponctuelle ---
+        prediction_val = None
         scalers = training_data.get('scalers')
-        
         if scalers and 'X' in scalers and 'y' in scalers:
-            scaler_X = scalers['X']
-            scaler_y = scalers['y']
-            
-            input_scaled = scaler_X.transform(input_df)
+            # Cas pour modèles avec normalisation (ex: régression linéaire)
+            input_scaled = scalers['X'].transform(input_df)
             prediction_scaled = model.predict(input_scaled)
-            
-            # La sortie de predict() est (n_samples,), inverse_transform attend (n_samples, n_features)
-            prediction_real = scaler_y.inverse_transform(prediction_scaled.reshape(-1, 1))
-            
-            return {"prediction": float(prediction_real[0][0])}
+            prediction_val = scalers['y'].inverse_transform(prediction_scaled.reshape(-1, 1))[0][0]
         else:
-            prediction = model.predict(input_df)
-            return {"prediction": float(prediction[0])}
+            # Cas pour modèles sans normalisation (ex: arbres de décision)
+            prediction_val = model.predict(input_df)[0]
+
+        # --- Étape 2: Calculer l'intervalle de confiance basé sur le type de modèle ---
+        is_linear_model = isinstance(model, (LinearRegression, Lasso, Ridge))
+        is_tree_model = isinstance(model, (GradientBoostingRegressor, RandomForestRegressor))
+        
+        if is_linear_model and scalers:
+            X_train = model_doc.get('X_train')
+            y_train = model_doc.get('y_train')
+            if X_train is not None and y_train is not None:
+                try:
+                    scaler_X = scalers['X']
+                    scaler_y = scalers['y']
+                    
+                    X_train_scaled = scaler_X.transform(pd.DataFrame(X_train, columns=features_needed))
+                    y_train_scaled = scaler_y.transform(np.array(y_train).reshape(-1, 1))
+                    
+                    n, p = X_train_scaled.shape
+                    y_pred_scaled = scaler_y.transform(np.array([[prediction_val]]))[0][0]
+                    
+                    y_hat_train = model.predict(X_train_scaled)
+                    residuals = y_train_scaled.flatten() - y_hat_train.flatten()
+                    mse = np.mean(residuals ** 2)
+                    
+                    input_scaled = scaler_X.transform(input_df)
+                    X0 = input_scaled[0]
+                    X_design = np.hstack([np.ones((n, 1)), X_train_scaled])
+                    X0_design = np.hstack([1, X0])
+                    
+                    cov_beta = mse * np.linalg.inv(np.dot(X_design.T, X_design))
+                    se_pred = np.sqrt(mse + np.dot(np.dot(X0_design.T, cov_beta), X0_design))
+                    
+                    low_bound_scaled = y_pred_scaled - 1.96 * se_pred
+                    ci_low = scaler_y.inverse_transform(np.array([low_bound_scaled]).reshape(1, 1))[0][0]
+                    
+                    high_bound_scaled = y_pred_scaled + 1.96 * se_pred
+                    ci_high = scaler_y.inverse_transform(np.array([high_bound_scaled]).reshape(1, 1))[0][0]
+
+                    # Vérification NaN ou infini
+                    if not (np.isnan(ci_low) or np.isnan(ci_high) or np.isinf(ci_low) or np.isinf(ci_high)):
+                        return {
+                            "prediction": float(prediction_val),
+                            "confidence_interval": [float(ci_low), float(ci_high)],
+                            "method": "analytical"
+                        }
+                    else:
+                        return {
+                            "prediction": float(prediction_val),
+                            "warning": "Intervalle de confiance non calculable (NaN ou infini)",
+                            "confidence_interval": None
+                        }
+                except Exception as e:
+                    return {"prediction": float(prediction_val), "warning": f"Impossible de calculer l'intervalle de confiance: {str(e)}"}
+        
+        elif is_tree_model:
+            X_train = model_doc.get('X_train')
+            if X_train is not None:
+                # Les modèles d'arbres sont entraînés sur des données brutes, pas besoin de scaler X_train
+                X_train_df = pd.DataFrame(X_train, columns=features_needed)
+                ci_low, ci_high = bootstrap_confidence_interval(model, X_train_df)
+                
+                if ci_low is not None and ci_high is not None and not (np.isnan(ci_low) or np.isnan(ci_high) or np.isinf(ci_low) or np.isinf(ci_high)):
+                    return {
+                        "prediction": float(prediction_val),
+                        "confidence_interval": [float(ci_low), float(ci_high)],
+                        "method": "bootstrap"
+                    }
+                else:
+                    return {
+                        "prediction": float(prediction_val),
+                        "warning": "Intervalle de confiance non calculable (NaN ou infini)",
+                        "confidence_interval": None
+                    }
+        
+        # Si aucun intervalle n'a pu être calculé, renvoyer la prédiction simple
+        return {"prediction": float(prediction_val)}
 
     except Exception as e:
         return {"error": str(e), "traceback": traceback.format_exc()}

@@ -1,5 +1,5 @@
-
 import { spawn } from 'child_process';
+import fs from 'fs'; // Ajout de l'importation du module File System
 import KpiData from '../models/KpiData.js';
 import { pipelineStatus, getIo, setPipelineStatus } from '../index.js';
 import { createNotification } from './notificationController.js';
@@ -146,9 +146,35 @@ export const runPipelineInMemory = (req, res) => {
         return resolve({ line, status: 'skipped', message: 'Paire de fichiers incomplète.' });
       }
 
-      console.log(`Lancement du pipeline en mémoire pour la ligne ${line}...`);
+      // --- DÉBUT DE LA LOGIQUE DE VÉRIFICATION DU CHEMIN ---
+
+      // 1. Définir les chemins possibles pour le script Python
+      const path1 = 'src/utils/full_pipeline_memory.py';
+      const path2 = 'utils/full_pipeline_memory.py';
+      let scriptPath;
+
+      // 2. Vérifier l'existence du fichier dans les chemins définis
+      if (fs.existsSync(path1)) {
+        scriptPath = path1;
+      } else if (fs.existsSync(path2)) {
+        scriptPath = path2;
+      } else {
+        // 3. Si le script n'est trouvé nulle part, rejeter la promesse avec une erreur claire
+        console.error(`ERREUR CRITIQUE: Le script Python est introuvable. Chemins vérifiés: ${path1}, ${path2}`);
+        return reject({ 
+          line, 
+          status: 'error', 
+          message: 'Fichier de script Python introuvable sur le serveur.' 
+        });
+      }
       
-      const pythonProcess = spawn('python', ['-X', 'utf8', 'src/utils/full_pipeline_memory.py']);
+      console.log(`Lancement du pipeline en mémoire pour la ligne ${line} avec le script : ${scriptPath}`);
+      
+      // 4. Utiliser la variable scriptPath pour lancer le processus
+      const pythonProcess = spawn('python', ['-X', 'utf8', scriptPath]);
+
+      // --- FIN DE LA LOGIQUE DE VÉRIFICATION DU CHEMIN ---
+
 
       pythonProcess.stdin.on('error', (err) => { console.error(`Erreur d'écriture stdin pour la ligne ${line}:`, err.message); });
       pythonProcess.on('error', (err) => {

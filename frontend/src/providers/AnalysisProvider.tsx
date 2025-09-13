@@ -14,7 +14,7 @@ interface AnalysisContextType {
   isTrainingRunning: boolean;
   trainingError: string | null;
   trainingStatus: string | null;
-  startTraining: () => Promise<void>;
+  startTraining: (lines?: string[], models?: string[]) => Promise<void>;
   // ------------------------------------
 }
 
@@ -133,12 +133,12 @@ export const AnalysisProvider: React.FC<AnalysisProviderProps> = ({ children }) 
   };
 
   // --- Nouvelle fonction pour démarrer l'entraînement ---
-  const startTraining = async () => {
+  const startTraining = async (lines?: string[], models?: string[]) => {
     setIsTrainingRunning(true);
     setTrainingError(null);
     setTrainingStatus(null);
     try {
-      await api.startTraining(); // à créer dans api.ts
+      await api.startTraining(lines, models);
     } catch (err) {
       if (err instanceof Error) {
         setTrainingError(err.message);
@@ -167,7 +167,7 @@ export const AnalysisProvider: React.FC<AnalysisProviderProps> = ({ children }) 
     isTrainingRunning,
     trainingError,
     trainingStatus,
-    startTraining
+  startTraining
     // ------------------------------------
   };
 

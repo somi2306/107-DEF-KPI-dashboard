@@ -101,7 +101,7 @@ export const PredictionScatterChart: React.FC<PredictionScatterChartProps> = ({ 
         <Scatter 
           name="Prédictions" 
           data={chartData} 
-          fill="#1f77b4" // Couleur bleue similaire à matplotlib
+          fill="#059669" //#1f77b4 Couleur bleue similaire à matplotlib
           opacity={0.6}
         />
       </ScatterChart>

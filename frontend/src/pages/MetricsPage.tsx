@@ -1,35 +1,148 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useModelSelector } from '../hooks/useModelSelector';
 import { api } from '../services/api';
 import { PRODUCTION_LINES, MODELS, TARGET_VARIABLES } from '../lib/constants';
 import type { ModelType } from '../lib/constants';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, SelectGroup, SelectLabel } from '../components/ui/select';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem} from '../components/ui/select';
+import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { EquationDisplay } from '../components/shared/EquationDisplay';
 import { MetricCard } from '../components/shared/MetricCard';
-import { TreeVisualization } from '../components/shared/TreeVisualization';
-import type { ModelMetrics, EquationData, TreeShape, AllTreesData, TargetVariable,LearningCurveData, PredictionPlotData } from '../types';
+import type { ModelMetrics, EquationData,LearningCurveData, PredictionPlotData } from '../types';
 import { FeatureImportanceChart } from '../components/shared/FeatureImportanceChart';
 import { LearningCurveChart } from '../components/shared/LearningCurveChart';
 import { PredictionScatterChart } from '../components/shared/PredictionScatterChart';
+import { Loader} from 'lucide-react';
+import {Sliders} from 'lucide-react';
+// Composant pour afficher les noms de variables hiérarchiques
+const HierarchicalVariableName: React.FC<{ parts: string[] }> = ({ parts }) => {
+    return (
+        <div className="flex flex-col">
+            {parts.map((part, index) => (
+                <div
+                    key={index}
+                    className={`text-xs ${index === 0
+                        ? 'text-gray-500 font-medium'
+                        : index === 1
+                            ? 'text-gray-700 font-semibold'
+                            : 'text-black font-bold'
+                        }`}
+                >
+                    {part}
+                </div>
+            ))}
+        </div>
+    );
+};
+
 export const MetricsPage: React.FC = () => {
     const { line, setLine, modelType, setModelType, target, setTarget, modelName, modelDisplayName } = useModelSelector();
     const [metrics, setMetrics] = useState<ModelMetrics | null>(null);
+    // States for hierarchical target menu
+    const [selectedTargetName, setSelectedTargetName] = useState<string | null>(null);
+    const [searchTermTarget, setSearchTermTarget] = useState('');
+    const [isTargetFocused, setIsTargetFocused] = useState(false);
+        // Hierarchical target variable list (same as PredictionPage)
+        const targetVarsList = [
+  ['TSP', "Cuve D'attaque (bouillie)", 'Densité bouillie'],
+  ['TSP', "Cuve D'attaque (bouillie)", '%P2O5 TOT bouillie'],
+  ['TSP', "Cuve D'attaque (bouillie)", '%P2O5  SE bouillie'],
+  ['TSP', "Cuve D'attaque (bouillie)", '%Acide libre bouillie'],
+  ['TSP', "Cuve D'attaque (bouillie)", '%H2O bouillie'],
+  ['TSP', "Cuve D'attaque (bouillie)", '%CaO bouillie'],
+  ['TSP', 'Sortie granulateur', '%P2O5  SE+SC gran'],
+  ['TSP', 'Sortie granulateur', '%P2O5 SE granu'],
+  ['TSP', 'Sortie granulateur', '%Acide libre granul'],
+  ['TSP', 'Sortie granulateur', '%P2O5 total granu'],
+  ['TSP', 'Sortie granulateur', '%H2O tq granu'],
+  ['PRODUIT FINI TSP', 'Détermination ', '%P2O5  TOT PF'],
+  ['PRODUIT FINI TSP', 'Détermination ', '%P2O5  SE+SC PF'],
+  ['PRODUIT FINI TSP', 'Détermination ', '%H2O Tq PF'],
+  ['PRODUIT FINI TSP', 'Détermination ', '% AL  à l\'eau PF'],
+  ['PRODUIT FINI TSP', 'Détermination ', '% AL à l\'acetone PF'],
+  ['PRODUIT FINI TSP', 'Détermination ', '%P2O5 SE PF '],
+  ['PRODUIT FINI TSP', 'Granulométrie', '˃6,3mm'],
+  ['PRODUIT FINI TSP', 'Granulométrie', '˃4,75mm'],
+  ['PRODUIT FINI TSP', 'Granulométrie', '˃4mm'],
+  ['PRODUIT FINI TSP', 'Granulométrie', '˃3,15mm'],
+  ['PRODUIT FINI TSP', 'Granulométrie', '˃2,5mm'],
+  ['PRODUIT FINI TSP', 'Granulométrie', '˃2mm'],
+  ['PRODUIT FINI TSP', 'Granulométrie', '˃1mm'],
+  ['PRODUIT FINI TSP', 'Granulométrie', '˃2,5-˃4mm'],
+  ['PRODUIT FINI TSP', 'Granulométrie', '˃2-˃4mm']
+];
+
+
+        // Group by first level
+        const groupByFirstLevel = (variables: { fullName: string, parts: string[] }[]) => {
+            const grouped: { [key: string]: { fullName: string, parts: string[] }[] } = {};
+            variables.forEach(variable => {
+                const firstLevel = variable.parts[0] || 'Autres';
+                if (!grouped[firstLevel]) {
+                    grouped[firstLevel] = [];
+                }
+                grouped[firstLevel].push(variable);
+            });
+            return grouped;
+        };
+
+        const groupedTargetVars = useMemo(() => {
+            const transformAndGroup = (vars: string[][]) => {
+                const transformed = vars.map(parts => ({
+                    fullName: parts.join('.'),
+                    parts: parts
+                }));
+                return groupByFirstLevel(transformed);
+            };
+            return transformAndGroup(targetVarsList);
+        }, [targetVarsList]);
+
+        // Filter by search
+        const filterTargetVariablesBySearch = (variables: { [key: string]: { fullName: string, parts: string[] }[] }) => {
+            if (!searchTermTarget) return variables;
+            const filtered: { [key: string]: { fullName: string, parts: string[] }[] } = {};
+            Object.entries(variables).forEach(([groupName, groupVariables]) => {
+                const filteredGroup = groupVariables.filter(variable =>
+                    variable.fullName.toLowerCase().includes(searchTermTarget.toLowerCase()) ||
+                    variable.parts.some(part => part.toLowerCase().includes(searchTermTarget.toLowerCase()))
+                );
+                if (filteredGroup.length > 0) {
+                    filtered[groupName] = filteredGroup;
+                }
+            });
+            return filtered;
+        };
+
+        const handleTargetInputFocus = () => {
+            setIsTargetFocused(true);
+        };
+
+        const handleTargetInputBlur = (e: React.FocusEvent) => {
+            setTimeout(() => {
+                if (e.currentTarget && !e.currentTarget.contains(document.activeElement)) {
+                    setIsTargetFocused(false);
+                }
+            }, 100);
+        };
+
+        const handleSelectTargetVariable = (variableFullName: string) => {
+            const lastPart = variableFullName.split('.').pop();
+            const foundTarget = TARGET_VARIABLES.find(t => t.name === lastPart);
+            if (foundTarget) {
+                setTarget(foundTarget);
+                setSelectedTargetName(null);
+            } else {
+                setTarget(null);
+                setSelectedTargetName(variableFullName);
+            }
+            setSearchTermTarget('');
+            setIsTargetFocused(false);
+        };
     const [equation, setEquation] = useState<EquationData | null>(null);
-    const [treeData, setTreeData] = useState<any | null>(null);
-    const [treeShape, setTreeShape] = useState<TreeShape | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [errorTree, setErrorTree] = useState<string | null>(null);
-    const [errorShape, setErrorShape] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
-    const [isLoadingTree, setIsLoadingTree] = useState(false);
-    const [isLoadingShape, setIsLoadingShape] = useState(false);
-    const [allTrees, setAllTrees] = useState<AllTreesData | null>(null);
-    const [isLoadingAllTrees, setIsLoadingAllTrees] = useState(false);
-    const [errorAllTrees, setErrorAllTrees] = useState<string | null>(null);
-    const [currentPage, setCurrentPage] = useState(0);
-    const TREES_PER_PAGE = 2; // On affiche 2 arbres par page
+
     const [showImportanceChart, setShowImportanceChart] = useState(false);
     const [isLoadingImportance, setIsLoadingImportance] = useState(false);
     const [errorImportance, setErrorImportance] = useState<string | null>(null);
@@ -43,14 +156,7 @@ export const MetricsPage: React.FC = () => {
     React.useEffect(() => {
         setMetrics(null);
         setEquation(null);
-        setTreeData(null);
-        setTreeShape(null);
-        setAllTrees(null); 
         setError(null);
-        setErrorTree(null);
-        setErrorShape(null);
-        setErrorAllTrees(null);
-        setCurrentPage(0);
         setShowImportanceChart(false);
         setLearningCurve(null);
         setPredictionPlot(null);
@@ -78,68 +184,7 @@ const handleFetchMetrics = async () => {
         setLoading(false);
     }
 };
-/*    
-    const handleShowTree = async () => {
-        if (!target) return;
-        setIsLoadingTree(true);
-        setErrorTree(null);
-        setTreeData(null);
-        try {
-            const data = await api.getTreeData(modelType, line, target.name);
-            setTreeData(data);
-        } catch (err: any) {
-            setErrorTree(err.response?.data?.error || err.message);
-        } finally {
-            setIsLoadingTree(false);
-        }
-    };
 
-    const handleShowShape = async () => {
-        if (!target) return;
-        setIsLoadingShape(true);
-        setErrorShape(null);
-        setTreeShape(null);
-        try {
-            const shape = await api.getTreeShape(modelType, line, target.name);
-            setTreeShape(shape);
-        } catch (err: any) {
-            setErrorShape(err.response?.data?.error || err.message);
-        } finally {
-            setIsLoadingShape(false);
-        }
-    };
-
-    const handleShowAllTrees = async () => {
-        if (!target) return;
-        setIsLoadingAllTrees(true);
-        setErrorAllTrees(null);
-        setAllTrees(null);
-        try {
-            const allTreesData = await api.getAllTreeData(modelType, line, target.name);
-            setAllTrees(allTreesData);
-        } catch (err: any) {
-            setErrorAllTrees(err.response?.data?.error || err.message || "Erreur lors du chargement de la liste des arbres.");
-        } finally {
-            setIsLoadingAllTrees(false);
-        }
-    };
-*/
-    const handleTargetChange = (targetName: string) => {
-        const foundTarget = TARGET_VARIABLES.find(t => t.name === targetName);
-        if (foundTarget) setTarget(foundTarget);
-    };
-
-        const handleNextPage = () => {
-        if (allTrees && (currentPage + 1) * TREES_PER_PAGE < allTrees.length) {
-            setCurrentPage(prevPage => prevPage + 1);
-        }
-    };
-
-    const handlePrevPage = () => {
-        if (currentPage > 0) {
-            setCurrentPage(prevPage => prevPage - 1);
-        }
-    };
 
     const handleToggleImportanceChart = async () => {
 
@@ -198,77 +243,136 @@ const handleFetchMetrics = async () => {
     };
     
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Performance des Modèles</CardTitle>
+       <div className="container mx-auto p-4 space-y-6">
+             <Card className="shadow-lg">
+               <CardHeader>
+                 <CardTitle className="flex items-center gap-3 text-2xl text-gray-800">
+                   <Sliders size={28} className="text-emerald-600" />Performance des Modèles</CardTitle>
                 <CardDescription>Visualisez les métriques de performance et la structure interactive du modèle.</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="selection-grid">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6 p-4 border rounded-lg">
                     <div>
-                        <label className="form-label">Ligne</label>
-                        <Select value={line} onValueChange={setLine}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{PRODUCTION_LINES.map(l => <SelectItem key={l} value={l}>Ligne {l}</SelectItem>)}</SelectContent></Select>
+                        <label className="block font-semibold mb-2">Ligne de Production</label>
+                        <Select value={line} onValueChange={setLine}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>{PRODUCTION_LINES.map(l => <SelectItem key={l} value={l}>Ligne {l}</SelectItem>)}</SelectContent>
+                        </Select>
                     </div>
                     <div>
-                        <label className="form-label">Modèle</label>
-                        <Select value={modelType} onValueChange={(value) => setModelType(value as ModelType)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{MODELS.map(m => <SelectItem key={m.value} value={m.value}>{m.name}</SelectItem>)}</SelectContent></Select>
+                        <label className="block font-semibold mb-2">Modèle</label>
+                        <Select value={modelType} onValueChange={(value) => setModelType(value as ModelType)}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>{MODELS.map(m => <SelectItem key={m.value} value={m.value}>{m.name}</SelectItem>)}</SelectContent>
+                        </Select>
                     </div>
-                    <div>
-                        <label className="form-label">Cible</label>
-                        <Select value={target?.name || ''} onValueChange={handleTargetChange}><SelectTrigger><SelectValue placeholder="Choisir..."/></SelectTrigger><SelectContent><SelectGroup><SelectLabel>TSP</SelectLabel>{TARGET_VARIABLES.filter(t => t.group.startsWith("TSP")).map(t => <SelectItem key={t.name} value={t.name}>{t.name}</SelectItem>)}</SelectGroup><SelectGroup><SelectLabel>Produit Fini TSP</SelectLabel>{TARGET_VARIABLES.filter(t => t.group.startsWith("PRODUIT FINI TSP")).map(t => <SelectItem key={t.name} value={t.name}>{t.name}</SelectItem>)}</SelectGroup></SelectContent></Select>
-                    </div>
+                                        <div>
+                                                <label className="block font-semibold mb-2">Variable Cible</label>
+                                                <div className="relative">
+                                                    {/* Champ d'affichage et de recherche */}
+                                                    <Input
+                                                        placeholder="Rechercher une variable cible..."
+                                                        value={searchTermTarget}
+                                                        onChange={(e) => setSearchTermTarget(e.target.value)}
+                                                        onFocus={handleTargetInputFocus}
+                                                        onBlur={handleTargetInputBlur}
+                                                        className="w-full"
+                                                    />
+                                                    {/* Le menu déroulant personnalisé */}
+                                                    {isTargetFocused && (
+                                                        <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg mt-1 max-h-60 overflow-y-auto">
+                                                            {Object.entries(filterTargetVariablesBySearch(groupedTargetVars)).map(([groupName, variables]) => (
+                                                                <div key={groupName}>
+                                                                    <div className="p-2 text-emerald-700 bg-emerald-100 font-semibold sticky top-0">
+                                                                        {groupName} ({variables.length})
+                                                                    </div>
+                                                                    {variables.map((variable) => (
+                                                                        <div
+                                                                            key={variable.fullName}
+                                                                            className="p-2 cursor-pointer hover:bg-gray-100"
+                                                                            onClick={() => handleSelectTargetVariable(variable.fullName)}
+                                                                        >
+                                                                            <HierarchicalVariableName parts={variable.parts.slice(1)} />
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            ))}
+                                                            {Object.keys(filterTargetVariablesBySearch(groupedTargetVars)).length === 0 && (
+                                                                <div className="p-2 text-center text-gray-500 text-sm">
+                                                                    Aucune variable cible trouvée pour "{searchTermTarget}"
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                    {/* Affichage de la variable sélectionnée */}
+                                                    {!isTargetFocused && (target || selectedTargetName) && (
+                                                        <div className="mt-2 p-2 border border-gray-300 rounded-md bg-gray-50">
+                                                            {selectedTargetName ? (
+                                                                <HierarchicalVariableName parts={selectedTargetName.split('.').slice(1)} />
+                                                            ) : target ? (
+                                                                <HierarchicalVariableName parts={[target.group, target.name]} />
+                                                            ) : null}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                        </div>
                 </div>
 
 
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginTop: '1.5rem' }}>
-                    <Button onClick={handleFetchMetrics} disabled={loading}>
-                        {loading ? 'Chargement...' : 'Afficher la Performance'}
-                    </Button>
-
-                    <Button onClick={handleToggleImportanceChart} disabled={isLoadingImportance} variant="outline">
-                        {isLoadingImportance ? 'Chargement...' : (showImportanceChart ? 'Cacher' : 'Afficher') + ' Poids des Variables'}
-                    </Button>
-                    
-                    {/*{(modelType === 'RandomForestRegressor' || modelType === 'GradientBoostingRegressor') && (
-                        <>
-                            {modelType === 'RandomForestRegressor' && (
-                        <Button onClick={handleShowTree} disabled={isLoadingTree} variant="outline">
-                            {isLoadingTree ? 'Chargement...' : 'Visualiser Arbre'}
+                    <div className="w-full mb-4">
+                        <Button className="w-full  bg-emerald-500 hover:bg-emerald-600" onClick={handleFetchMetrics} disabled={loading || !target}>
+                            {loading ? 'Chargement...' : 'Afficher la Performance'}
                         </Button>
-                    )}
-                            <Button onClick={handleShowShape} disabled={isLoadingShape} variant="outline">
-                                {isLoadingShape ? 'Chargement...' : 'Afficher Forme'}
-                            </Button>
-
-                            {modelType === 'GradientBoostingRegressor' && (
-                <Button onClick={handleShowAllTrees} disabled={isLoadingAllTrees} variant="outline">
-                    {isLoadingAllTrees ? 'Chargement...' : 'Visualiser Tous les Arbres'}
-                </Button>
-            )}
-                        </>
-                    )} */}
-
-                    <Button onClick={handleShowLearningCurve} disabled={isLoadingLC} variant="outline">
-                        {isLoadingLC ? 'Chargement...' : "Afficher Courbe d'Apprentissage"}
-                    </Button>
-                    <Button onClick={handleShowPredictionPlot} disabled={isLoadingPlot} variant="outline">
-                        {isLoadingPlot ? 'Chargement...' : "Réel vs. Prédit"}
-                    </Button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                        <Button className="w-full" onClick={handleToggleImportanceChart} disabled={isLoadingImportance} variant="outline">
+                            {isLoadingImportance ? 'Chargement...' : (showImportanceChart ? 'Cacher' : 'Afficher') + ' Poids des Variables'}
+                        </Button>
+                        <Select onValueChange={(value) => {
+                            if (value === 'learningCurve') handleShowLearningCurve();
+                            else if (value === 'predictionPlot') handleShowPredictionPlot();
+                        }}>
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Afficher Courbe" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="learningCurve">Afficher Courbe d'Apprentissage</SelectItem>
+                                <SelectItem value="predictionPlot">Réel vs. Prédit</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
 
                 <hr className="divider" />
                 
 
-                {loading && <div className="mt-6">Chargement des données du modèle...</div>}
-                {error && <div className="warning-box">{error}</div>}
+                                {loading && (
+                                    <div className="flex flex-col items-center justify-center mt-6 mb-6">
+                                        <Loader className="animate-spin text-emerald-500 mb-2" size={32} />
+                                        <span className="text-lg font-medium text-gray-700">Chargement des données du modèle...</span>
+                                    </div>
+                                )}
+                                {error && (
+                                    <div className="flex items-center justify-center bg-yellow-100 border border-yellow-400 text-yellow-900 rounded-md p-4 my-4">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-yellow-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M4.93 19h14.14a2 2 0 001.74-2.82l-7.07-12.26a2 2 0 00-3.48 0L3.19 16.18A2 2 0 004.93 19z" />
+                                        </svg>
+                                        <span className="font-semibold mr-2">Attention :</span>
+                                        <span>{error}</span>
+                                    </div>
+                                )}
 
                 {!loading && !error && metrics && (
-                    <div className="mt-6">
-                        <h3 className="text-lg-medium">Résultats pour : <strong>{modelDisplayName} - Ligne {line} - {target?.name}</strong></h3>
-                        <div className="metrics-grid">
-<MetricCard 
-                title="Score R²"
+    <div className="mt-6">
+       <h3 className="text-lg font-medium">
+  Résultats pour : <strong className="text-emerald-500">{modelDisplayName} - Ligne {line} - {target?.name}</strong>
+</h3>
 
+        <br/>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <MetricCard 
+                title="Score R²"
                 value={typeof metrics.r2_score === 'number' ? metrics.r2_score.toFixed(4) : 'N/A'}
                 description="Plus proche de 1, meilleur est le modèle." 
             />
@@ -282,39 +386,23 @@ const handleFetchMetrics = async () => {
                 value={typeof metrics.rmse === 'number' ? metrics.rmse.toFixed(4) : 'N/A'}
                 description="Racine de l'erreur." 
             />
-                        </div>
-                    </div>
-                )}
-                {!loading && !error && equation && (
-                  <div className="mt-6"><EquationDisplay data={equation} /></div>
-                )}
+        </div>
+        {/* Afficher l'équation ici plutôt que séparément */}
+        {equation && (
+            <div className="mt-6"><EquationDisplay data={equation} /></div>
+        )}
+    </div>
+)}
+                                
 
-                {errorShape && <div className="warning-box mt-4">{errorShape}</div>}
-                {treeShape && (
-                    <div className="mt-6">
-                        <h3 className="text-lg font-medium">Dimensions de l'Arbre</h3>
-                        <div className="metrics-grid">
-                            <MetricCard title="Profondeur Maximale" value={treeShape.max_depth} />
-                            <MetricCard title="Nombre de Feuilles" value={treeShape.n_leaves} />
-                        </div>
-                    </div>
-                )}
-
-                {isLoadingTree && <p className="mt-4">Chargement de l'arbre interactif...</p>}
-                {errorTree && <div className="warning-box mt-4">{errorTree}</div>}
-                {treeData && (
-                    <div className="mt-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Structure Interactive d'un Arbre</CardTitle>
-                                <CardDescription>Représentation interactive d'un arbre du modèle {modelDisplayName}.</CardDescription>
-                            </CardHeader>
-                            <CardContent><TreeVisualization data={treeData} /></CardContent>
-                        </Card>
-                    </div>
-                )}
+                
                 <div className="mt-4">
-                    {isLoadingImportance && <p>Chargement des poids des variables...</p>}
+                                        {isLoadingImportance && (
+                                            <div className="flex flex-col items-center justify-center mt-2 mb-2">
+                                                <Loader className="animate-spin text-emerald-500 mb-2" size={24} />
+                                                <span className="text-base font-medium text-gray-700">Chargement des poids des variables...</span>
+                                            </div>
+                                        )}
                     {errorImportance && <div className="warning-box">{errorImportance}</div>}
                     {showImportanceChart && equation && (
                         <Card className="mt-4">
@@ -330,55 +418,14 @@ const handleFetchMetrics = async () => {
                 </div>
 
                 
+                
                 <div className="mt-8">
-                    {isLoadingAllTrees && <p>Chargement de la visualisation de tous les arbres...</p>}
-                    {errorAllTrees && <div className="warning-box">{errorAllTrees}</div>}
-
-                    
-                    {allTrees && allTrees.length > 0 && (
-                        <div>
-                            
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-2xl font-bold">
-                                    Arbres du Modèle "{modelDisplayName}"
-                                </h2>
-                                <div className="flex items-center gap-2">
-                                    <Button onClick={handlePrevPage} disabled={currentPage === 0} variant="outline">
-                                        Précédent
-                                    </Button>
-                                    <span className="text-sm font-medium text-muted-foreground">
-                                        Page {currentPage + 1} / {Math.ceil(allTrees.length / TREES_PER_PAGE)}
-                                    </span>
-                                    <Button 
-                                        onClick={handleNextPage} 
-                                        disabled={(currentPage + 1) * TREES_PER_PAGE >= allTrees.length}
-                                        variant="outline"
-                                    >
-                                        Suivant
-                                    </Button>
-                                </div>
-                            </div>
-                            
-                            
-                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                                {allTrees
-                                    .slice(currentPage * TREES_PER_PAGE, (currentPage + 1) * TREES_PER_PAGE)
-                                    .map((tree, index) => {
-                                        
-                                        const treeNumber = currentPage * TREES_PER_PAGE + index + 1;
-                                        return (
-                                            <Card key={treeNumber}>
-                                                <CardHeader><CardTitle>Arbre {treeNumber}</CardTitle></CardHeader>
-                                                <CardContent><TreeVisualization data={tree.json_structure} /></CardContent>
-                                            </Card>
-                                        );
-                                    })}
-                            </div>
-                        </div>
-                    )}
-                </div>
-                <div className="mt-8">
-                    {isLoadingLC && <p>Chargement de la courbe d'apprentissage...</p>}
+                                        {isLoadingLC && (
+                                            <div className="flex flex-col items-center justify-center mt-2 mb-2">
+                                                <Loader className="animate-spin text-emerald-500 mb-2" size={24} />
+                                                <span className="text-base font-medium text-gray-700">Chargement de la courbe d'apprentissage...</span>
+                                            </div>
+                                        )}
                     {errorLC && <div className="warning-box">{errorLC}</div>}
                     {learningCurve && (
                         <Card>
@@ -395,7 +442,12 @@ const handleFetchMetrics = async () => {
                     )}
                 </div>
                 <div className="mt-8">
-                    {isLoadingPlot && <p>Chargement du graphique Réel vs. Prédit...</p>}
+                                        {isLoadingPlot && (
+                                            <div className="flex flex-col items-center justify-center mt-2 mb-2">
+                                                <Loader className="animate-spin text-emerald-500 mb-2" size={24} />
+                                                <span className="text-base font-medium text-gray-700">Chargement du graphique Réel vs. Prédit...</span>
+                                            </div>
+                                        )}
                     {errorPlot && <div className="warning-box">{errorPlot}</div>}
                     {predictionPlot && (
                         <Card>
@@ -413,5 +465,6 @@ const handleFetchMetrics = async () => {
                 </div>
             </CardContent>
         </Card>
+        </div>
     );
 };

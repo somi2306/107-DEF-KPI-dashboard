@@ -39,8 +39,41 @@ MODEL_TRAINERS = {
 }
 
 # --- CONFIGURATION ---
-lines_to_pretrain = ['F', 'E', 'D']
-models_to_pretrain =  list(MODEL_TRAINERS.keys()) #['RandomForestRegressor'] 
+
+# --- Gestion des arguments CLI ---
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument('--lines', type=str, help='JSON array of lines to pretrain')
+parser.add_argument('--models', type=str, help='JSON array of models to pretrain')
+args, _ = parser.parse_known_args()
+
+if args.lines:
+    try:
+        # Nettoyer la chaîne d'entrée
+        lines_str = args.lines.strip().replace("'", '"')
+        print(f"Argument lines reçu (nettoyé): {lines_str}")
+        lines_to_pretrain = json.loads(lines_str)
+        print(f"Lines interprétées: {lines_to_pretrain}")
+    except Exception as e:
+        print(f"Erreur parsing JSON '{args.lines}': {e}")
+        print("Utilisation des lignes par défaut: ['F', 'E', 'D']")
+        lines_to_pretrain = ['F', 'E', 'D']
+else:
+    lines_to_pretrain = ['F', 'E', 'D']
+
+if args.models:
+    try:
+        # Nettoyer la chaîne d'entrée
+        models_str = args.models.strip().replace("'", '"')
+        print(f"Argument models reçu (nettoyé): {models_str}")
+        models_to_pretrain = json.loads(models_str)
+        print(f"Models interprétées: {models_to_pretrain}")
+    except Exception as e:
+        print(f"Erreur parsing JSON '{args.models}': {e}")
+        print("Utilisation des modèles par défaut: tous les modèles disponibles")
+        models_to_pretrain = list(MODEL_TRAINERS.keys())
+else:
+    models_to_pretrain = list(MODEL_TRAINERS.keys())
 
 target_variables_to_pretrain = [
     ('TSP', "Cuve D'attaque (bouillie)", 'Densité bouillie'),
@@ -275,55 +308,55 @@ def save_model_to_db(client, model_data):
 def train_model_from_df(df, line, model_type, target_col, mongo_client):
     try:
         target_col_name = normalize_name(target_col)
-        if target_col_name not in df.columns: 
+        if target_col_name not in df.columns:
             return {"error": f"Colonne cible '{target_col_name}' non trouvée"}
-        
+
         print(f"Entraînement sur la cible: {target_col_name}")
 
         blacklist_features = {normalize_name(col) for col in target_variables_to_pretrain}
-        
+
         correlation_matrix = df.corr(numeric_only=True)
         correlations = correlation_matrix[target_col_name]
-        
-        features = [feat for feat, corr in correlations.items() 
+
+        features = [feat for feat, corr in correlations.items()
                    if abs(corr) > 0 and feat != target_col_name and feat not in blacklist_features]
-        
-        if not features: 
+
+        if not features:
             return {"error": "Aucune feature valide trouvée après filtrage."}
-        
+
         print(f"{len(features)} features sélectionnées")
 
         X = df[features]
         y = df[target_col_name]
-        
+
         X = X.replace([np.inf, -np.inf], np.nan).fillna(X.mean())
         y = y.replace([np.inf, -np.inf], np.nan).fillna(y.mean())
-        
+
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-        
+
         trainer = MODEL_TRAINERS.get(model_type)
-        if not trainer: 
+        if not trainer:
             return {"error": "Type de modèle invalide"}
-        
+
         model, metrics, scalers = trainer(X_train, y_train, X_test, y_test)
         
+
         # --- NOUVEAU: Sauvegarde dans MongoDB ---
-        
         clean_target_name = re.sub(r'\s+', '_', target_col[-1])
         model_name = f"{model_type.lower()}_{line}_{clean_target_name.replace('%', 'pct').replace('-', '_')}"
-        
+
         # Sérialiser le modèle et les données en mémoire
         model_buffer = io.BytesIO()
         joblib.dump(model, model_buffer)
         model_buffer.seek(0)
 
         data_to_save = {'features': features}
-        if scalers: 
+        if scalers:
             data_to_save['scalers'] = scalers
         data_buffer = io.BytesIO()
         joblib.dump(data_to_save, data_buffer)
         data_buffer.seek(0)
-        
+
         serializable_metrics = {k: float(v) for k, v in metrics.items()}
 
         learning_curve_data = None
@@ -358,45 +391,67 @@ def train_model_from_df(df, line, model_type, target_col, mongo_client):
             print(f"Impossible de sauvegarder les prédictions: {pred_error}")
 
         # Préparer le document pour MongoDB
+# Dans pretrain_models.py, vérifiez que cette partie existe dans train_model_from_df()
         model_document = {
-            'name': model_name,
-            'line': line,
-            'target_variable': target_col[-1],
-            'model_type': model_type,
-            'model_file': Binary(model_buffer.read()),
-            'data_file': Binary(data_buffer.read()),
-            'metrics': serializable_metrics,
-            'learning_curve': learning_curve_data,
-            'predictions': prediction_data,
-        }
+    'name': model_name,
+    'line': line,
+    'target_variable': target_col[-1],
+    'model_type': model_type,
+    'model_file': Binary(model_buffer.read()),
+    'data_file': Binary(data_buffer.read()),
+    'metrics': serializable_metrics,
+    'learning_curve': learning_curve_data,
+    'predictions': prediction_data,
+    # IMPORTANT: Toujours sauvegarder X_train et y_train pour tous les modèles
+    'X_train': X_train.values.tolist(),
+    'y_train': y_train.values.tolist(),
+    }
+                # ==================================================================
+        # AJOUTEZ CE BLOC DE VÉRIFICATION
+        # ==================================================================
+        print("\n--- VÉRIFICATION AVANT SAUVEGARDE ---")
+        print(f"Modèle: {model_name}")
+        if 'X_train' in model_document and model_document['X_train']:
+            # Utiliser numpy pour obtenir la forme (dimensions) de la liste de listes
+            shape = np.array(model_document['X_train']).shape
+            print(f"Vérification de X_train: OK. Forme: {shape}")
+        else:
+            print("ERREUR: La clé 'X_train' est MANQUANTE ou VIDE dans le document !")
+            
+        if 'y_train' in model_document and model_document['y_train']:
+            shape = np.array(model_document['y_train']).shape
+            print(f"Vérification de y_train: OK. Forme: {shape}")
+        else:
+            print("ERREUR: La clé 'y_train' est MANQUANTE ou VIDE dans le document !")
+        print("-------------------------------------\n")
+        # ==================================================================
+        # FIN DU BLOC DE VÉRIFICATION
+        # ==================================================================
 
         # Sauvegarder dans la base de données
         save_model_to_db(mongo_client, model_document)
         # Visualisation des arbres (pour les modèles d'arbres)
 
-# on commente cette partie car elle n'est plus nécessaire
-# if model_type in ['GradientBoostingRegressor', 'RandomForestRegressor']:
-#     try:
-#         viz_output_dir = os.path.join(model_dir, f"{model_name}_trees_visualizations")
-#         visualize_script_path = os.path.join(os.path.dirname(__file__), 'visualize_all_trees.py')
-        
-#         subprocess.run([
-#             sys.executable,
-#             visualize_script_path,
-#             os.path.join(model_dir, f"{model_name}.joblib"),
-#             ",".join(features),
-#             viz_output_dir
-#         ], check=True, capture_output=True, text=True)
-        
-#         print("Visualisations des arbres sauvegardées")
-        
-#     except subprocess.CalledProcessError as e:
-#         print(f"Erreur lors de la visualisation des arbres: {e.stderr}")
-     
+        # on commente cette partie car elle n'est plus nécessaire
+        # if model_type in ['GradientBoostingRegressor', 'RandomForestRegressor']:
+        #     try:
+        #         viz_output_dir = os.path.join(model_dir, f"{model_name}_trees_visualizations")
+        #         visualize_script_path = os.path.join(os.path.dirname(__file__), 'visualize_all_trees.py')
+        #         subprocess.run([
+        #             sys.executable,
+        #             visualize_script_path,
+        #             os.path.join(model_dir, f"{model_name}.joblib"),
+        #             ",".join(features),
+        #             viz_output_dir
+        #         ], check=True, capture_output=True, text=True)
+        #         print("Visualisations des arbres sauvegardées")
+        #     except subprocess.CalledProcessError as e:
+        #         print(f"Erreur lors de la visualisation des arbres: {e.stderr}")
+
         return metrics
-        
     except Exception as e:
         traceback.print_exc()
+        return {"error": str(e)}
         return {"error": str(e)}
 
 def format_metric_value(value, default="N/A"):

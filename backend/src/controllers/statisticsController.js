@@ -1,5 +1,5 @@
 import { spawn } from 'child_process';
-import fs from 'fs'; // Ajouter cette importation
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 // Modifiez l'import en haut du fichier
@@ -105,7 +105,37 @@ export const generateStatisticsFromMongoDB = async (req, res) => {
   });
 
   try {
-    const pythonProcess = spawn('python', ['src/utils/statistics_analyzer.py', lineLetter]);
+    // --- DÉBUT DE LA LOGIQUE DE VÉRIFICATION DU CHEMIN ---
+    const path1 = 'src/utils/statistics_analyzer.py';
+    const path2 = 'utils/statistics_analyzer.py';
+    let scriptPath;
+
+    if (fs.existsSync(path1)) {
+        scriptPath = path1;
+    } else if (fs.existsSync(path2)) {
+        scriptPath = path2;
+    } else {
+        // Si le script est introuvable, on gère l'erreur proprement
+        const errorMessage = `Le script d'analyse (${path1} ou ${path2}) est introuvable sur le serveur.`;
+        console.error(`💥 ERREUR CRITIQUE: ${errorMessage}`);
+        
+        setAnalysisStatus('idle');
+        io.emit('analysis-status-update', 'idle');
+        
+        createNotification({
+            message: `Échec du lancement de l'analyse pour la ligne ${lineLetter}.`,
+            status: 'failed',
+            details: errorMessage
+        });
+        
+        // Arrête l'exécution de la fonction ici
+        return; 
+    }
+    
+    console.log(`Lancement du script d'analyse pour la ligne ${lineLetter} via : ${scriptPath}`);
+    const pythonProcess = spawn('python', [scriptPath, lineLetter]);
+    // --- FIN DE LA LOGIQUE DE VÉRIFICATION DU CHEMIN ---
+
 
     let scriptOutput = '';
     let scriptError = '';

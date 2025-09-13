@@ -11,10 +11,15 @@ import cleaningRoutes from './routes/cleaningRoutes.js';
 import pipelineRoutes from './routes/pipelineRoutes.js'; 
 import notificationRoutes from './routes/notificationRoutes.js';
 import trainingRoutes from './routes/trainingRoutes.js';
+import authRoutes from "./routes/authRoute.js";
+import adminRoutes from "./routes/adminRoute.js";
+import userRoutes from "./routes/userRoute.js";
+import { clerkMiddleware } from '@clerk/express'
 
 // --- Configuration initiale ---
 dotenv.config();
 const app = express();
+
 const PORT = process.env.PORT || 5000;
 
 // --- CONFIGURATION DE SOCKET.IO ---
@@ -52,12 +57,22 @@ io.on('connection', (socket) => {
   });
 });
 
-// --- MIDDLEWARES ---
-app.use(cors());
-app.use(express.json({ limit: '50mb' }))
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+
+
+
+// --- MIDDLEWARES ---
+app.use(cors({
+  origin: "http://localhost:5173", // Votre URL frontend
+  credentials: true // ⚠️ IMPORTANT: Autorise les credentials
+}));
+app.use(express.json())
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(clerkMiddleware())
 // --- Définition des points d'accès de l'API ---
+app.use("/api/users",userRoutes)
+app.use("/api/auth", authRoutes);
+app.use("/api/admin",adminRoutes)
 app.use('/api/predictions', predictionRoutes);
 app.use('/api/stats', statisticsRoutes);
 app.use('/api/notifications', notificationRoutes);

@@ -13,11 +13,14 @@ export const FeatureImportanceChart: React.FC<FeatureImportanceChartProps> = ({ 
   };
 
   const chartData = useMemo(() => {
-    const weights = data.coefficients || data.importances;
+    let weights = data.coefficients || data.importances;
     if (!weights || !data.features) {
       return [];
     }
-
+    // Si coefficients est un tableau imbriqué (ex: [[...]]), on prend le premier sous-tableau
+    if (Array.isArray(weights) && Array.isArray(weights[0])) {
+      weights = weights[0];
+    }
     return data.features
       .map((feature, index) => {
         const weightValue = Number(weights[index]);

@@ -1,11 +1,9 @@
-
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { useModelSelector } from '../hooks/useModelSelector';
 import { api } from '../services/api';
 import { PRODUCTION_LINES } from '../lib/constants';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, SelectGroup, SelectLabel, SelectSeparator } from '../components/ui/select';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem} from '../components/ui/select';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import type { RelationQualitative, RelationQuantitative, RelationQuantQual } from '../types';
@@ -14,12 +12,11 @@ import { MetricCard } from '../components/shared/MetricCard';
 import { InteractiveHistogram } from '../components/shared/InteractiveHistogram';
 import { InteractiveBoxPlot } from '../components/shared/InteractiveBoxPlot';
 import { InteractiveScatterPlot } from '../components/shared/InteractiveScatterPlot';
-import { FeatureImportanceChart } from '../components/shared/FeatureImportanceChart';
 import { InteractiveNormalDistribution } from '../components/shared/InteractiveNormalDistribution';
 import { InteractiveFrequencyPolygon } from '../components/shared/InteractiveFrequencyPolygon';
 import { InteractiveScatterPlotPlotly } from '../components/shared/InteractiveScatterPlotPlotly';
-import { useAnalysis } from '../providers/AnalysisProvider';
-import { Loader } from 'lucide-react';
+//import { useAnalysis } from '../providers/AnalysisProvider';
+import { BarChart2} from 'lucide-react';
 // Types pour les sélections d'analyse
 type AnalysisType = 'descriptive' | 'relations';
 type DescriptiveSubType = 'quantitative' | 'qualitative';
@@ -31,12 +28,11 @@ export const StatisticsPage: React.FC = () => {
   const { line, setLine } = useModelSelector();
   const [stats, setStats] = useState<StatisticsResponse | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [relationsSubType, setRelationsSubType] = useState<RelationsSubType>('qualitative_qualitative');
 
   // États pour les sélections d'analyse
   const [analysisType, setAnalysisType] = useState<AnalysisType>('descriptive');
   const [descriptiveSubType, setDescriptiveSubType] = useState<DescriptiveSubType>('quantitative');
-  const [relationsSubType, setRelationsSubType] = useState<RelationsSubType>('qualitative_qualitative');
 
   // États pour le filtrage des variables
   const [targetVariable, setTargetVariable] = useState<string>('');
@@ -48,7 +44,6 @@ export const StatisticsPage: React.FC = () => {
     qualitative: {}
   });
 
-  const [loadingVariables, setLoadingVariables] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [targetRelationVariable, setTargetRelationVariable] = useState<string>('');
   const [otherRelationVariable, setOtherRelationVariable] = useState<string>('');
@@ -58,7 +53,7 @@ export const StatisticsPage: React.FC = () => {
   const [isTargetFocused, setIsTargetFocused] = useState(false);
   const [isOtherFocused, setIsOtherFocused] = useState(false);
 
-  const { isAnalysisRunning } = useAnalysis();
+  //const { isAnalysisRunning } = useAnalysis();
 
   const normalizeName = (nameParts: string | string[]): string => {
     if (typeof nameParts === 'string') {
@@ -235,7 +230,6 @@ const targetVarsList = [
 
   const loadVariableNames = async () => {
     if (!line) return;
-    setLoadingVariables(true);
     try {
       const data = await api.getVariableNames(line);
       const transformVariables = (variables: string[]) => {
@@ -250,8 +244,6 @@ const targetVarsList = [
       });
     } catch (error) {
       console.error('Erreur chargement noms variables:', error);
-    } finally {
-      setLoadingVariables(false);
     }
   };
 
@@ -291,7 +283,7 @@ const targetVarsList = [
 const handleFetchStatistics = async () => {
   if (!line) return;
   setLoading(true);
-  setError(null);
+  
   setStats(null);
 
   // --- AJOUT 1 : Log des variables avant l'appel ---
@@ -326,7 +318,7 @@ const handleFetchStatistics = async () => {
   } catch (err: any) {
     // --- AJOUT 2 : Log détaillé de l'erreur ---
     console.error("❌ Erreur API détaillée :", err.response ? err.response.data : err.message);
-    setError(err.message || "Erreur de chargement des statistiques.");
+    
   } finally {
     setLoading(false);
   }
@@ -365,7 +357,7 @@ const filteredQuantitativeVars = useMemo(() => {
         {/* 2.1.1 Distribution Table */}
         {data.distribution_table && data.distribution_table.length > 0 && (
           <div>
-            <h3 className="font-semibold mb-2 text-lg"> Distribution</h3>
+            <h3 className="font-semibold mb-2 text-lg text-emerald-600"> Distribution</h3>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse border border-gray-300 text-sm">
                 <thead>
@@ -392,7 +384,7 @@ const filteredQuantitativeVars = useMemo(() => {
         {/* 2.1.2 Indicateurs de tendance centrale */}
         {data.tendance_centrale && (
           <div>
-            <h3 className="font-semibold mb-2 text-lg"> Indicateurs de Tendance Centrale</h3>
+            <h3 className="font-semibold mb-2 text-lg text-emerald-600"> Indicateurs de Tendance Centrale</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <MetricCard title="Mode" value={data.tendance_centrale.mode?.toString() ?? 'N/A'} />
               <MetricCard title="Médiane (Q2)" value={data.tendance_centrale.mediane?? 'N/A'} />
@@ -404,7 +396,7 @@ const filteredQuantitativeVars = useMemo(() => {
         {/* 2.1.3 Quartiles */}
         {data.quartiles && (
           <div>
-            <h3 className="font-semibold mb-2 text-lg"> Quartiles</h3>
+            <h3 className="font-semibold mb-2 text-lg text-emerald-600"> Quartiles</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <MetricCard title="1er Quartile (Q1)" value={data.quartiles.Q1 ?? 'N/A'} />
               <MetricCard title="2ème Quartile (Q2)" value={data.quartiles.Q2 ?? 'N/A'} />
@@ -416,7 +408,7 @@ const filteredQuantitativeVars = useMemo(() => {
         {/* 2.1.4 Indicateurs de dispersion */}
         {data.dispersion && (
           <div>
-            <h3 className="font-semibold mb-2 text-lg"> Indicateurs de Dispersion</h3>
+            <h3 className="font-semibold mb-2 text-lg text-emerald-600"> Indicateurs de Dispersion</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <MetricCard title="Écart-type" value={data.dispersion.ecart_type ?? 'N/A'} />
               <MetricCard title="Écart interquartile" value={data.dispersion.ecart_interquartile ?? 'N/A'} />
@@ -428,7 +420,7 @@ const filteredQuantitativeVars = useMemo(() => {
         {/* 2.1.5 Indicateurs de forme */}
         {data.forme && (
           <div>
-            <h3 className="font-semibold mb-2 text-lg"> Indicateurs de Forme</h3>
+            <h3 className="font-semibold mb-2 text-lg text-emerald-600"> Indicateurs de Forme</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <MetricCard
                 title="Coefficient de Variance"
@@ -449,7 +441,7 @@ const filteredQuantitativeVars = useMemo(() => {
         {/* 2.1.6 Représentations graphiques interactives */}
         {data.chart_data && (
           <div>
-            <h3 className="font-semibold mb-2 text-lg"> Représentations Graphiques Interactives</h3>
+            <h3 className="font-semibold mb-2 text-lg text-emerald-600"> Représentations Graphiques Interactives</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Colonne de gauche: Histogramme et polygone de fréquences */}
               <div className="space-y-6">
@@ -557,7 +549,7 @@ const filteredQuantitativeVars = useMemo(() => {
           {/* 2.2.3 Diagramme en barre interactif */}
           {data.chart_data?.bar_chart && (
             <div>
-              <h3 className="font-semibold mb-2 text-lg">Diagramme en Barre Interactif</h3>
+              <h3 className="font-semibold mb-2 text-lg text-emerald-600">Diagramme en Barre Interactif</h3>
               <InteractiveHistogram
                 data={data.chart_data.bar_chart.map((item: any) => ({
                   bin: item.modalite,
@@ -651,7 +643,7 @@ const filteredQuantitativeVars = useMemo(() => {
 
           {quantQualData.tableau_moy_ecart_type && (
             <div className="mb-6">
-              <h4 className="font-semibold mb-3 text-lg"> Tableau de Moyenne et Écart-type</h4>
+              <h4 className="font-semibold mb-3 text-lg text-emerald-600"> Tableau de Moyenne et Écart-type</h4>
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse border border-white-300 text-sm">
                   <thead>
@@ -677,7 +669,7 @@ const filteredQuantitativeVars = useMemo(() => {
 
           {quantQualData.tableau_mediane_quartiles && (
             <div className="mb-6">
-              <h4 className="font-semibold mb-3 text-lg"> Tableau de Médiane et Quartiles</h4>
+              <h4 className="font-semibold mb-3 text-lg  text-emerald-600"> Tableau de Médiane et Quartiles</h4>
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse border border-emerald-300 text-sm">
                   <thead>
@@ -704,7 +696,7 @@ const filteredQuantitativeVars = useMemo(() => {
           {/* Box plot interactif par catégorie */}
           {quantQualData.chart_data?.boxplot_data && (
             <div className="mb-6">
-              <h4 className="font-semibold mb-3 text-lg"> Boîtes à Moustache par Catégorie</h4>
+              <h4 className="font-semibold mb-3 text-lg  text-emerald-600"> Boîtes à Moustache par Catégorie</h4>
               <InteractiveBoxPlot
                 data={quantQualData.chart_data.boxplot_data.map((item: any) => ({
                   name: item.category,
@@ -789,8 +781,7 @@ const filteredQuantitativeVars = useMemo(() => {
     return Object.keys(filtered).length > 0 ? filtered : null;
   };
 
-const quantitativeVars = stats && stats.Variables ? Object.entries(stats.Variables).filter(([_, data]) => isQuantitative(data)) : [];
-const qualitativeVars = stats && stats.Variables ? Object.entries(stats.Variables).filter(([_, data]) => isQualitative(data)) : [];
+
   const relationsData = filteredRelations();
   const hasRelations = relationsData && Object.keys(relationsData).length > 0;
 const availableCorrelationVars = useMemo(() => {
@@ -817,10 +808,12 @@ const availableCorrelationVars = useMemo(() => {
     return filtered;
   }, [variableNames.quantitative, targetRelationVariable, normalizedTargetVars]);
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Analyse Statistique Complète</CardTitle>
+    <div className="container mx-auto p-4 space-y-6">
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3 text-2xl text-gray-800">
+                <BarChart2 size={28} className="text-emerald-600" />
+                Analyse Statistique Complète</CardTitle>
           <CardDescription>Configurez et lancez votre analyse statistique</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -828,7 +821,7 @@ const availableCorrelationVars = useMemo(() => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Sélection de la ligne */}
             <div>
-              <label className="form-label">Ligne de Production</label>
+              <label className="block font-semibold mb-2">Ligne de Production</label>
               <Select value={line} onValueChange={(value) => {
                 setLine(value);
                 setAnalysisType('descriptive');
@@ -852,7 +845,7 @@ const availableCorrelationVars = useMemo(() => {
 
             {/* Sélection du type d'analyse */}
             <div>
-              <label className="form-label">Type d'Analyse</label>
+              <label className="block font-semibold mb-2">Type d'Analyse</label>
               <Select value={analysisType} onValueChange={(value: AnalysisType) => {
                 setAnalysisType(value);
                 setDescriptiveSubType('quantitative');
@@ -877,7 +870,7 @@ const availableCorrelationVars = useMemo(() => {
           {analysisType === 'descriptive' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="form-label">Type de Variables</label>
+                <label className="block font-semibold mb-2">Type de Variables</label>
                 <Select value={descriptiveSubType} onValueChange={(value: DescriptiveSubType) => {
                   setDescriptiveSubType(value);
                   setTargetVariable('');
@@ -897,7 +890,7 @@ const availableCorrelationVars = useMemo(() => {
 {descriptiveSubType === 'quantitative' && (
                 <div className="relative">
                   <div className="flex justify-between items-center mb-2">
-                    <label className="form-label">Variable Cible</label>
+                    <label className="block font-semibold mb-2">Variable Cible</label>
                     {targetVariable && (
                       <Button
                         type="button"
@@ -1156,10 +1149,10 @@ const availableCorrelationVars = useMemo(() => {
           {analysisType === 'descriptive' && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-2xl">
-                  Analyse Descriptive - {
-                    descriptiveSubType === 'quantitative' ? 'Variables Quantitatives' : 'Variables Qualitatives'}
-                </CardTitle>
+                <CardTitle className="text-2xl text-emerald-500">
+  Analyse Descriptive - {descriptiveSubType === 'quantitative' ? 'Variables Quantitatives' : 'Variables Qualitatives'}
+</CardTitle>
+
               </CardHeader>
               <CardContent>
                 {descriptiveSubType === 'quantitative' && (
@@ -1187,7 +1180,7 @@ const availableCorrelationVars = useMemo(() => {
           {analysisType === 'relations' && hasRelations && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-2xl">
+                <CardTitle className="text-2xl text-emerald-500">
                   Étude des Relations - {
                     relationsSubType === 'qualitative_qualitative' ? 'Variables Qualitatives' :
                       relationsSubType === 'quantitative_qualitative' ? 'Quantitative/Qualitative' :

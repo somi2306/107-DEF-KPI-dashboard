@@ -1,8 +1,8 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import { createContext, useState, useContext, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { api } from '../services/api';
-import { API_BASE_URL } from '../lib/constants';
+// import.meta.env.VITE_API_BASE_URL ou apiClient
 
 interface Notification {
   _id: string;
@@ -19,7 +19,7 @@ interface NotificationContextType {
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
-const SOCKET_URL = API_BASE_URL.replace('/api', '');
+const SOCKET_URL = (import.meta.env.VITE_API_BASE_URL || '').replace('/api', '');
 
 export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);

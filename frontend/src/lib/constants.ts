@@ -1,6 +1,6 @@
 import type { Model, TargetVariable } from '../types';
 
-export const API_BASE_URL = 'http://localhost:5000/api';
+// export const API_BASE_URL = 'http://localhost:5000/api'; // Supprimé, utiliser VITE_API_BASE_URL via apiClient
 
 export const MODELS: Model[] = [
   { name: 'Régression Linéaire', value: 'LinearRegression' },

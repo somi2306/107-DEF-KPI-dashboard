@@ -1,4 +1,3 @@
-import React from 'react';
 import Tree from 'react-d3-tree';
 
 // Définir un type simple pour les données, la bibliothèque s'occupe du reste
@@ -9,7 +8,6 @@ interface TreeNode {
 
 // Styles pour les nœuds pour un look plus propre
 const nodeSize = { x: 200, y: 80 };
-const foreignObjectProps = { width: nodeSize.x, height: nodeSize.y, x: -100 };
 
 // Composant personnalisé pour afficher chaque nœud
 const renderNode = ({ nodeDatum, toggleNode }: { nodeDatum: TreeNode; toggleNode: () => void }) => (

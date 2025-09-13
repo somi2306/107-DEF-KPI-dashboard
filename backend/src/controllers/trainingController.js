@@ -16,17 +16,24 @@ export const startTraining = async (req, res) => {
 
   // Mettre à jour l'état via la fonction centralisée (ce qui envoie l'événement WebSocket)
   setTrainingStatus({ status: 'running', error: null, message: null });
-  
+
+  // Récupérer les paramètres de ligne et modèle depuis le body
+  const { lines, models } = req.body;
+
   try {
     createNotification({
-        message: "L'entraînement des modèles a commencé.",
-        status: 'in-progress',
+      message: "L'entraînement des modèles a commencé.",
+      status: 'in-progress',
     });
 
     console.log("Lancement du script d'entraînement...");
 
     const pythonScriptPath = path.resolve(__dirname, '../utils/pretrain_models.py');
-    const pythonProcess = spawn('python', [pythonScriptPath]);
+    // Passer les paramètres en JSON via argv
+    const args = [pythonScriptPath];
+    if (lines) args.push('--lines', JSON.stringify(lines));
+    if (models) args.push('--models', JSON.stringify(models));
+    const pythonProcess = spawn('python', args);
 
     let stderrOutput = '';
     pythonProcess.stderr.on('data', (data) => {
@@ -40,10 +47,10 @@ export const startTraining = async (req, res) => {
         const successMessage = "L'entraînement des modèles est terminé avec succès.";
         // Mettre à jour l'état sur succès
         setTrainingStatus({ status: 'finished', error: null, message: successMessage });
-        
+
         createNotification({
-            message: successMessage,
-            status: 'completed',
+          message: successMessage,
+          status: 'completed',
         });
 
       } else {
@@ -53,20 +60,20 @@ export const startTraining = async (req, res) => {
         setTrainingStatus({ status: 'error', error: errorMessage, message: null });
 
         createNotification({
-            message: "Erreur lors de l'entraînement des modèles.",
-            details: stderrOutput || errorMessage,
-            status: 'failed',
+          message: "Erreur lors de l'entraînement des modèles.",
+          details: stderrOutput || errorMessage,
+          status: 'failed',
         });
       }
     });
-    
+
     res.status(202).json({ message: "L'entraînement a été lancé." });
 
   } catch (error) {
     const errorMessage = "Erreur interne du serveur lors du lancement de l'entraînement.";
     // Mettre à jour l'état en cas d'erreur de lancement
     setTrainingStatus({ status: 'error', error: errorMessage, message: null });
-    console.error("Erreur lors du lancement de l'entraînement :", error); 
+    console.error("Erreur lors du lancement de l'entraînement :", error);
     res.status(500).json({ message: errorMessage });
   }
 };
