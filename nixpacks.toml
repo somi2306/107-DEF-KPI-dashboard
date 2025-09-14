@@ -1,16 +1,12 @@
-# nixpacks.toml
+[phases]
+setup = [
+    "cd backend && pip install -r requirements.txt",
+    "npm install --prefix backend",
+    "npm install --prefix frontend"
+]
 
-[phases.setup]
-# Ajoute les paquets Python et pip à l'environnement
-nixPkgs = ["...", "python311", "python311Packages.pip"]
-
-[phases.install]
-cmds = ["npm install"]
-
-[phases.build]
-# Exécute notre commande de build personnalisée
-cmds = ["pip install -r backend/requirements.txt && npm install --prefix backend && npm install --prefix frontend && npm run build --prefix frontend"]
+[build]
+build = "npm run build --prefix frontend"
 
 [start]
-# La commande pour démarrer le serveur
-cmd = "npm start --prefix backend"
+start = "cd backend && npm start"
