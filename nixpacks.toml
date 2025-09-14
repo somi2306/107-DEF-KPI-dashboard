@@ -1,12 +1,10 @@
-[phases]
-setup = [
-    "cd backend && pip install -r requirements.txt",
-    "npm install --prefix backend",
-    "npm install --prefix frontend"
-]
+# nixpacks.toml (Version Corrigée pour Railway)
 
-[build]
-build = "npm run build --prefix frontend"
+[phases.setup]
+# Installe Node.js (via le provider standard) et Python
+# C'est l'étape la plus importante pour corriger "pip: not found"
+nixPkgs = ["nodejs-20", "python311", "python311Packages.pip"]
 
 [start]
-start = "cd backend && npm start"
+# Commande pour démarrer le serveur une fois le build terminé
+cmd = "npm start --prefix backend"
