@@ -101,17 +101,17 @@ app.get('/api/analysis/status', (req, res) => {
 // NOTE: Cette section est utile pour Render, mais pas nécessaire pour Vercel car le frontend et le backend sont déployés séparément.
 // Vous pouvez la laisser, elle ne causera pas de problème.
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "../frontend/dist")));
+  const buildPath = path.join(__dirname, '..', '..', 'dist');
 
+  // 1. Sert les fichiers statiques (CSS, JS, images)
+  app.use(express.static(buildPath));
+
+  // 2. Middleware "catch-all" : Pour toute autre requête qui n'est pas une API
+  //    ou un fichier statique, renvoyer l'application React.
   app.use((req, res) => {
-    res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
+    res.sendFile(path.join(buildPath, 'index.html'));
   });
 }
-
-app.get('/', (req, res) => {
-  res.send('API du serveur de traitement de données est en cours d\'exécution.');
-});
-
 
 if (process.env.NODE_ENV === 'production') {
   console.log = () => {};
