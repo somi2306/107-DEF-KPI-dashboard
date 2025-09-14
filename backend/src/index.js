@@ -96,9 +96,7 @@ app.get('/api/analysis/status', (req, res) => {
   res.status(200).json({ status: analysisStatus });
 });
 
-app.get('/', (req, res) => {
-  res.send('API du serveur de traitement de données est en cours d\'exécution.');
-});
+
 
 // --- Servir les fichiers statiques du frontend en production ---
 // NOTE: Cette section est utile pour Render, mais pas nécessaire pour Vercel car le frontend et le backend sont déployés séparément.
@@ -119,6 +117,10 @@ if (process.env.NODE_ENV === 'production') {
   console.info = () => {};
   console.debug = () => {};
 }
+
+app.get('/', (req, res) => {
+  res.send('API du serveur de traitement de données est en cours d\'exécution.');
+});
 
 // --- Démarrage du serveur ---
 const startServer = async () => {
