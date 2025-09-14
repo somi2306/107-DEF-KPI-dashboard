@@ -1,10 +1,10 @@
-# nixpacks.toml (Version Corrigée pour Railway)
+# nixpacks.toml (Version finale pour Railway)
 
 [phases.setup]
-# Installe Node.js (via le provider standard) et Python
-# C'est l'étape la plus importante pour corriger "pip: not found"
-nixPkgs = ["nodejs-20", "python311", "python311Packages.pip"]
+# Dit à Nixpacks d'inclure les paquets par défaut (Node.js)
+# ET d'y AJOUTER Python et pip. C'est l'étape cruciale.
+nixPkgs = ["...", "python311", "python311Packages.pip"]
 
-[start]
-# Commande pour démarrer le serveur une fois le build terminé
-cmd = "npm start --prefix backend"
+# On ne définit PAS les autres phases (install, build, start).
+# Cela force Railway à utiliser les scripts de votre package.json,
+# ce qu'il fait déjà, mais cette fois dans le bon environnement.
