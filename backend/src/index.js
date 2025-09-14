@@ -24,12 +24,19 @@ const app = express();
 
 const PORT = process.env.PORT || 5000;
 
+// +++ MODIFICATION POUR LE DÉPLOIEMENT +++
+// Définir l'URL du frontend autorisée en fonction de l'environnement
+const frontendURL = process.env.NODE_ENV === 'production' 
+    ? process.env.FRONTEND_URL 
+    : 'http://localhost:5173';
+
 // --- CONFIGURATION DE SOCKET.IO ---
 const server = http.createServer(app);
 const io = new Server(server, { 
   cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
+    origin: frontendURL, // Utiliser la variable ici aussi
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
@@ -52,7 +59,6 @@ export let trainingStatus = {
 io.on('connection', (socket) => {
   console.log('✅ Un utilisateur est connecté via WebSocket');
   
-  // Envoyer les statuts actuels dès qu'un nouvel utilisateur se connecte
   socket.emit('analysis-status-update', analysisStatus);
   socket.emit('pipeline-status-update', pipelineStatus);
   socket.emit('training-status-update', trainingStatus);
@@ -63,9 +69,10 @@ io.on('connection', (socket) => {
 });
 
 // --- MIDDLEWARES ---
+// +++ MODIFICATION POUR LE DÉPLOIEMENT +++
 app.use(cors({
-  origin: "http://localhost:5173", // Votre URL frontend
-  credentials: true // ⚠️ IMPORTANT: Autorise les credentials
+  origin: frontendURL, // Utiliser la variable ici
+  credentials: true
 }));
 app.use(express.json())
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -94,22 +101,20 @@ app.get('/', (req, res) => {
 });
 
 // --- Servir les fichiers statiques du frontend en production ---
-
+// NOTE: Cette section est utile pour Render, mais pas nécessaire pour Vercel car le frontend et le backend sont déployés séparément.
+// Vous pouvez la laisser, elle ne causera pas de problème.
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
-  // Catch-all pour toutes les routes non gérées
   app.use((req, res) => {
     res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
   });
 }
 
-
 if (process.env.NODE_ENV === 'production') {
   console.log = () => {};
   console.info = () => {};
   console.debug = () => {};
-  // Gardez console.warn et console.error actifs pour les avertissements et erreurs importants
 }
 
 // --- Démarrage du serveur ---
@@ -138,11 +143,10 @@ export const setAnalysisStatus = (newStatus) => {
 
 export const setPipelineStatus = (newStatus) => {
   pipelineStatus = newStatus;
-  // Note: l'émission est gérée dans le controller pour plus de flexibilité
 };
 
 export const setTrainingStatus = (newStatus) => {
   trainingStatus = newStatus;
-  // Émission de l'événement de mise à jour du statut à tous les clients
   io.emit('training-status-update', trainingStatus);
 };
+
