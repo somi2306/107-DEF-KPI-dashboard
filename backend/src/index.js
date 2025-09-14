@@ -103,11 +103,14 @@ app.get('/', (req, res) => {
 // --- Servir les fichiers statiques du frontend en production ---
 // NOTE: Cette section est utile pour Render, mais pas nécessaire pour Vercel car le frontend et le backend sont déployés séparément.
 // Vous pouvez la laisser, elle ne causera pas de problème.
+// --- Servir les fichiers statiques du frontend en production ---
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "../frontend/dist")));
+  // Chemin corrigé pour pointer vers le dossier 'dist' à la racine
+  app.use(express.static(path.join(__dirname, "../../dist"))); 
 
   app.use((req, res) => {
-    res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
+    // Chemin corrigé pour le fichier index.html
+    res.sendFile(path.join(__dirname, "../../dist/index.html"));
   });
 }
 
