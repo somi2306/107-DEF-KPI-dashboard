@@ -6,7 +6,6 @@ import http from 'http';
 import { Server } from 'socket.io'; 
 import path from 'path';
 import { fileURLToPath } from 'url';
-import helmet from 'helmet';
 import predictionRoutes from './routes/predictionRoutes.js';
 import statisticsRoutes from './routes/statisticsRoutes.js';
 import cleaningRoutes from './routes/cleaningRoutes.js';
@@ -77,7 +76,7 @@ app.use(cors({
 app.use(express.json())
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(clerkMiddleware())
-app.use(helmet());
+
 
 // --- Définition des points d'accès de l'API ---
 
@@ -101,8 +100,7 @@ app.get('/api/analysis/status', (req, res) => {
 // NOTE: Cette section est utile pour Render, mais pas nécessaire pour Vercel car le frontend et le backend sont déployés séparément.
 // Vous pouvez la laisser, elle ne causera pas de problème.
 if (process.env.NODE_ENV === "production") {
-  const buildPath = path.join(__dirname, '..', '..', 'dist');
-
+  const buildPath = path.join(__dirname, '..', '..', 'frontend', 'dist');
   // 1. Sert les fichiers statiques (CSS, JS, images)
   app.use(express.static(buildPath));
 
