@@ -133,7 +133,7 @@ export const generateStatisticsFromMongoDB = async (req, res) => {
     }
     
     console.log(`Lancement du script d'analyse pour la ligne ${lineLetter} via : ${scriptPath}`);
-    const pythonProcess = spawn('python', [scriptPath, lineLetter]);
+    const pythonProcess = spawn('python3', [scriptPath, lineLetter]);
     // --- FIN DE LA LOGIQUE DE VÉRIFICATION DU CHEMIN ---
 
 

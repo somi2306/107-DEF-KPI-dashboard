@@ -41,7 +41,7 @@ const getScriptPaths = (scriptName) => {
 // Fonction générique pour appeler un script Python et gérer la réponse
 const callPythonScript = (res, command, ...args) => {
     const { scriptPath, cwd } = getScriptPaths('predict.py');
-    const pythonProcess = spawn('python', [scriptPath, command, ...args], { cwd });
+    const pythonProcess = spawn('python3', [scriptPath, command, ...args], { cwd });
 
     let dataString = '';
     let errorString = '';
