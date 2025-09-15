@@ -33,11 +33,14 @@ jobs:
           VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
 
+     # NOUVELLE VERSION CORRIGÉE
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: .
+          path: |
+            .
+            !**/node_modules
 
   deploy:
     runs-on: ubuntu-latest
@@ -66,3 +69,4 @@ jobs:
           app-name: '107-DEF-KPI-dashboard'
           slot-name: 'Production'
           package: .
+
