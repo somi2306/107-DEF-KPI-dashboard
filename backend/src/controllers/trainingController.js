@@ -33,7 +33,7 @@ export const startTraining = async (req, res) => {
     const args = [pythonScriptPath];
     if (lines) args.push('--lines', JSON.stringify(lines));
     if (models) args.push('--models', JSON.stringify(models));
-    const pythonProcess = spawn('python3', args);
+    const pythonProcess = spawn('python', args);
 
     let stderrOutput = '';
     pythonProcess.stderr.on('data', (data) => {
