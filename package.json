@@ -4,8 +4,9 @@
 	"description": "",
 	"main": "index.js",
 	"scripts": {
-		"build": "npm install --prefix backend && npm install --prefix frontend && npm run build --prefix frontend",
-		"start": "npm start --prefix backend"
+  	"build": "pip install -r backend/requirements.txt && npm install --prefix backend && npm install --prefix frontend && npm run build --prefix frontend",
+  	"start": "npm start --prefix backend",
+  	"postinstall": "npm install --prefix backend && npm install --prefix frontend"
 	},
 	"keywords": [],
 	"author": "",

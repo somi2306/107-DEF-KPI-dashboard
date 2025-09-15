@@ -111,11 +111,6 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-if (process.env.NODE_ENV === 'production') {
-  console.log = () => {};
-  console.info = () => {};
-  console.debug = () => {};
-}
 
 // --- Démarrage du serveur ---
 const startServer = async () => {
