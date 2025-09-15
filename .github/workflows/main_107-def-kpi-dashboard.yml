@@ -1,4 +1,4 @@
-# Fichier de workflow SANS le bloc "environment"
+# Fichier de workflow final et corrigé
 
 name: Build and deploy Node.js app to Azure Web App - 107-DEF-KPI-dashboard
 
@@ -25,15 +25,16 @@ jobs:
         with:
           python-version: '3.11'
 
+      # --- ÉTAPE CORRIGÉE ---
       - name: Install dependencies and build project
         run: |
           npm install
           npm run build --if-present
         env:
+          # L'indentation est maintenant correcte
           VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
 
-     # NOUVELLE VERSION CORRIGÉE
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
@@ -69,6 +70,3 @@ jobs:
           app-name: '107-DEF-KPI-dashboard'
           slot-name: 'Production'
           package: .
-
-
-
