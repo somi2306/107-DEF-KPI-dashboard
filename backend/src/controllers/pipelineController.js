@@ -171,7 +171,7 @@ export const runPipelineInMemory = (req, res) => {
       console.log(`Lancement du pipeline en mémoire pour la ligne ${line} avec le script : ${scriptPath}`);
       
       // 4. Utiliser la variable scriptPath pour lancer le processus
-      const pythonProcess = spawn('python3', ['-X', 'utf8', scriptPath]);
+      const pythonProcess = spawn('python', ['-X', 'utf8', scriptPath]);
 
       // --- FIN DE LA LOGIQUE DE VÉRIFICATION DU CHEMIN ---
 

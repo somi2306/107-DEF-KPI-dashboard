@@ -8,7 +8,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import predictionRoutes from './routes/predictionRoutes.js';
 import statisticsRoutes from './routes/statisticsRoutes.js';
-import cleaningRoutes from './routes/cleaningRoutes.js';
 import pipelineRoutes from './routes/pipelineRoutes.js'; 
 import notificationRoutes from './routes/notificationRoutes.js';
 import trainingRoutes from './routes/trainingRoutes.js';
@@ -86,7 +85,6 @@ app.use("/api/admin", adminRoutes);
 app.use('/api/predictions', predictionRoutes);
 app.use('/api/stats', statisticsRoutes);
 app.use('/api/notifications', notificationRoutes);
-app.use('/api/cleaning', cleaningRoutes); 
 app.use('/api/pipeline', pipelineRoutes);
 app.use('/api/training', trainingRoutes);
 
