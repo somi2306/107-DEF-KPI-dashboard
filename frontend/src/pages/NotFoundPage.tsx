@@ -15,7 +15,7 @@ const NotFoundPage: React.FC = () => {
           Désolé, la page que vous recherchez n'existe pas ou a été déplacée.
         </p>
         <Button asChild className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded">
-          <Link to="/">Retourner à l'accueil</Link>
+          <Link to="/hierarchical-data">Retourner à l'accueil</Link>
         </Button>
       </div>
     </div>

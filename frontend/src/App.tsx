@@ -19,7 +19,8 @@ import SignUpWithEmail from "./components/SignUpWithEmail";
 import FloatingShape from "./components/FloatingShape";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import ProcessProtectionRoute from "./components/ProcessProtectionRoute"; // Importez le nouveau composant
-
+import AuthProtectedRoute from "./components/AuthProtectedRoute";
+import PublicOnlyRoute from "./components/PublicOnlyRoute";
 import { Toaster } from "react-hot-toast";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster as UIToaster } from "./components/ui/toaster";
@@ -42,7 +43,7 @@ const App: React.FC = () => {
           <NotificationProvider>
             <Routes>
               <Route path="/" element={isSignedIn ? <Navigate to="/hierarchical-data" /> : <LandingPage />} />
-              {/* ... autres routes ... */}
+              <Route element={<PublicOnlyRoute />}>
               <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback signUpForceRedirectUrl={"/auth-callback"} />} />
               <Route path="/auth-callback" element={<AuthCallbackPage />} />
               <Route path="/auth" element={
@@ -55,7 +56,8 @@ const App: React.FC = () => {
               } />
               <Route path='/admin' element={<AdminPage />} />
               <Route path="/sign-up-email" element={<div className="h-screen bg-black flex items-center justify-center"><SignUpWithEmail /></div>} />
-              
+              </Route>
+              <Route element={<AuthProtectedRoute />}>
               <Route element={<MainLayout activePage="/hierarchical-data" setActivePage={() => {}} />}> 
                 {/* Routes non protégées par les processus */}
                 <Route path="hierarchical-data" element={<HierarchicalDataPage />} />
@@ -78,11 +80,12 @@ const App: React.FC = () => {
                   <Route path="entrainement" element={<TrainingPage />} />
                 </Route>
               </Route>
+              </Route>
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </NotificationProvider>
         </AnalysisProvider>
-      </TooltipProvider>
+      </TooltipProvider>          
     </QueryClientProvider>
   );
 };
