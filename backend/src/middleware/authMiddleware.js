@@ -20,7 +20,7 @@ export const requireAdmin = async (req, res, next) => {
 			return res.status(401).json({ message: "Non autorisé" });
 		}
 
-		// Chercher l'utilisateur dans VOTRE base de données MongoDB
+		// Chercher l'utilisateur dans la base de données MongoDB
 		const user = await User.findOne({ clerkId: req.auth.userId });
 
 		if (!user) {

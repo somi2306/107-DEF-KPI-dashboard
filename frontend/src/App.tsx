@@ -1,4 +1,3 @@
-// src/App.tsx
 import React from "react";
 import { Route, Routes, Navigate } from "react-router-dom";
 import { MainLayout } from "./components/layout/MainLayout";
@@ -18,7 +17,7 @@ import AuthPage from "./pages/auth/AuthPage";
 import SignUpWithEmail from "./components/SignUpWithEmail";
 import FloatingShape from "./components/FloatingShape";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
-import ProcessProtectionRoute from "./components/ProcessProtectionRoute"; // Importez le nouveau composant
+import ProcessProtectionRoute from "./components/ProcessProtectionRoute";
 import AuthProtectedRoute from "./components/AuthProtectedRoute";
 import PublicOnlyRoute from "./components/PublicOnlyRoute";
 import { Toaster } from "react-hot-toast";

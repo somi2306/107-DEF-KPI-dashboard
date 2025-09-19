@@ -12,7 +12,7 @@ class ManualLinearGradientModel:
         """Prédit les valeurs pour un X donné."""
         return np.dot(X, self.theta) + self.b
 
-# --- Fonctions de Régression de votre notebook ---
+
 def initialization(X):
     theta = np.random.randn(X.shape[1], 1) * 0.01
     b = np.random.randn(1) * 0.01
@@ -42,7 +42,7 @@ def train_linear_gradient(X_train, y_train, X_test, y_test):
     """
     Entraîne un modèle de régression linéaire avec descente de gradient.
     """
-    # 1. Standardisation des données
+    #  Standardisation des données
     scaler_X = StandardScaler()
     scaler_y = StandardScaler()
     X_train_scaled = scaler_X.fit_transform(X_train)
@@ -50,19 +50,19 @@ def train_linear_gradient(X_train, y_train, X_test, y_test):
     X_test_scaled = scaler_X.transform(X_test)
     y_test_scaled = scaler_y.transform(y_test.values.reshape(-1, 1))
 
-    # 2. Entraînement avec la descente de gradient
+    #  Entraînement avec la descente de gradient
     # Note: 10000 itérations peuvent être plus rapides pour les tests
     theta, b = regression_lineaire(X_train_scaled, y_train_scaled, alpha=0.05, n_iterations=10000)
     
-    # 3. Création de l'objet modèle
+    #  Création de l'objet modèle
     model = ManualLinearGradientModel(theta, b)
 
-    # 4. Prédiction et dénormalisation
+    #  Prédiction et dénormalisation
     y_pred_scaled = model.predict(X_test_scaled)
     y_test_real = scaler_y.inverse_transform(y_test_scaled)
     y_pred_real = scaler_y.inverse_transform(y_pred_scaled)
 
-    # 5. Calcul des métriques
+    #  Calcul des métriques
     metrics = {
         'r2_score': r2_score(y_test_real, y_pred_real),
         'mse': mean_squared_error(y_test_real, y_pred_real),

@@ -2,7 +2,6 @@ import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { Loader } from 'lucide-react';
-import { toast } from 'react-hot-toast'; // 1. Importer le toast
 
 const AuthProtectedRoute: React.FC = () => {
   const { isSignedIn, isLoaded } = useUser();
@@ -16,12 +15,8 @@ const AuthProtectedRoute: React.FC = () => {
     );
   }
 
-  // Si l'utilisateur n'est pas connecté, le rediriger
+  // Si l'utilisateur n'est pas connecté, le rediriger vers la page d'accueil
   if (!isSignedIn) {
-    // 2. Ajouter la notification d'erreur avec un id unique
-    toast.error("Veuillez vous connecter pour accéder à cette page.", {
-      id: 'auth-required-error',
-    });
     return <Navigate to="/" replace />;
   }
 

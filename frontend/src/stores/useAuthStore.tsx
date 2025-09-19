@@ -5,7 +5,7 @@ interface AuthStore {
     isAdmin: boolean;
     isLoading: boolean;
     error: string | null;
-    checkAdminStatus: (clerkId: string) => Promise<void>; // Accepte un clerkId
+    checkAdminStatus: (clerkId: string) => Promise<void>; 
     reset: () => void;
 }
 
@@ -14,10 +14,9 @@ export const useAuthStore = create<AuthStore>((set) => ({
     isLoading: true,
     error: null,
 
-    checkAdminStatus: async (clerkId: string) => { // La variable est renommée pour plus de clarté
+    checkAdminStatus: async (clerkId: string) => { 
         set({ isLoading: true, error: null });
         try {
-            // On envoie le clerkId dans le corps de la requête POST
             const response = await apiClient.post("/admin/check", { clerkId });
             set({ isAdmin: response.data.admin });
         } catch (error: any) {

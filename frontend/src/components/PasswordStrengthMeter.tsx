@@ -49,10 +49,10 @@ const PasswordStrengthMeter: React.FC<PasswordStrengthMeterProps> = ({ password 
   const getColor = (strength: number) => {
     if (strength === 0) return "bg-red-500";
     if (strength === 1) return "bg-red-400";
-    if (strength === 2) return "bg-orange-500"; // Changed from yellow-500 to orange-500
-    if (strength === 3) return "bg-yellow-500"; // Changed from #7494ec to yellow-500
-    if (strength === 4) return "w-full bg-emerald-500"; // Stays the same for 'Strong'
-    return "bg-gray-600"; // Default for no strength
+    if (strength === 2) return "bg-orange-500"; 
+    if (strength === 3) return "bg-yellow-500"; 
+    if (strength === 4) return "w-full bg-emerald-500"; 
+    return "bg-gray-600"; 
   };
 
   const getStrengthText = (strength: number) => {

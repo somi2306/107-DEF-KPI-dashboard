@@ -9,8 +9,8 @@ const SignUpWithEmail = () => {
   const { isLoaded, signUp, setActive } = useSignUp();
   const [emailAddress, setEmailAddress] = useState("");
   const [password, setPassword] = useState("");
-  const [firstName, setFirstName] = useState(""); // Add firstName state
-  const [lastName, setLastName] = useState("");   // Add lastName state
+  const [firstName, setFirstName] = useState(""); 
+  const [lastName, setLastName] = useState("");   
   const [pendingVerification, setPendingVerification] = useState(false);
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -24,8 +24,8 @@ const SignUpWithEmail = () => {
       await signUp.create({
         emailAddress,
         password,
-        firstName, // Pass firstName to Clerk
-        lastName,  // Pass lastName to Clerk
+        firstName, 
+        lastName,  
       });
 
       await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
@@ -67,15 +67,15 @@ const SignUpWithEmail = () => {
       {!pendingVerification ? (
         <>
           <Input
-            type='text' // Changed to text for names
-            placeholder='Prénom' // Placeholder for first name
+            type='text' 
+            placeholder='Prénom' 
             value={firstName}
             onChange={(e) => setFirstName(e.target.value)}
             className='bg-zinc-800 border-zinc-700 text-white placeholder-zinc-400'
           />
           <Input
-            type='text' // Changed to text for names
-            placeholder='Nom' // Placeholder for last name
+            type='text' 
+            placeholder='Nom' 
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
             className='bg-zinc-800 border-zinc-700 text-white placeholder-zinc-400'

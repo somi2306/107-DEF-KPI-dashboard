@@ -90,12 +90,11 @@ def get_all_features_for_line(line):
     qui peuvent servir de feature, en excluant les cibles et les colonnes non pertinentes.
     """
     try:
-        # Utiliser la nouvelle fonction pour charger depuis MongoDB
         df = load_data_from_mongodb_for_features(line)
         if df is None:
             return {"error": f"Impossible de charger les données pour la ligne {line}"}
 
-        # Liste des colonnes cibles à exclure (adaptée à votre structure MongoDB)
+        # Liste des colonnes cibles à exclure
         target_blacklist = [
     # TSP - Cuve D'attaque (bouillie)
     'TSP.Cuve D\'attaque (bouillie).Densité bouillie',
@@ -195,9 +194,6 @@ def get_model_from_db(client, model_name):
         traceback.print_exc(file=sys.stderr)
         return None, None, None
 
-# --- Fonctions principales (adaptées pour MongoDB) ---
-
-# Dans predict.py, ajoutez cette fonction avant la fonction predict()
 def bootstrap_confidence_interval(model, X_train, n_bootstrap=100, alpha=0.05):
     """
     Calcule l'intervalle de confiance par bootstrap pour les modèles d'arbres.
@@ -246,22 +242,15 @@ def predict(model_name, all_input_data):
             return {"error": f"Modèle '{model_name}' non trouvé."}
 
         features_needed = training_data.get('features', [])
-        # Assurer que l'ordre des colonnes est le même que pendant l'entraînement
         input_df = pd.DataFrame([all_input_data], columns=features_needed)
-        
-        # --- Étape 1: Obtenir la prédiction ponctuelle ---
         prediction_val = None
         scalers = training_data.get('scalers')
         if scalers and 'X' in scalers and 'y' in scalers:
-            # Cas pour modèles avec normalisation (ex: régression linéaire)
             input_scaled = scalers['X'].transform(input_df)
             prediction_scaled = model.predict(input_scaled)
             prediction_val = scalers['y'].inverse_transform(prediction_scaled.reshape(-1, 1))[0][0]
         else:
-            # Cas pour modèles sans normalisation (ex: arbres de décision)
             prediction_val = model.predict(input_df)[0]
-
-        # --- Étape 2: Calculer l'intervalle de confiance basé sur le type de modèle ---
         is_linear_model = isinstance(model, (LinearRegression, Lasso, Ridge))
         is_tree_model = isinstance(model, (GradientBoostingRegressor, RandomForestRegressor))
         
@@ -296,8 +285,6 @@ def predict(model_name, all_input_data):
                     
                     high_bound_scaled = y_pred_scaled + 1.96 * se_pred
                     ci_high = scaler_y.inverse_transform(np.array([high_bound_scaled]).reshape(1, 1))[0][0]
-
-                    # Vérification NaN ou infini
                     if not (np.isnan(ci_low) or np.isnan(ci_high) or np.isinf(ci_low) or np.isinf(ci_high)):
                         return {
                             "prediction": float(prediction_val),
@@ -316,7 +303,6 @@ def predict(model_name, all_input_data):
         elif is_tree_model:
             X_train = model_doc.get('X_train')
             if X_train is not None:
-                # Les modèles d'arbres sont entraînés sur des données brutes, pas besoin de scaler X_train
                 X_train_df = pd.DataFrame(X_train, columns=features_needed)
                 ci_low, ci_high = bootstrap_confidence_interval(model, X_train_df)
                 
@@ -333,7 +319,7 @@ def predict(model_name, all_input_data):
                         "confidence_interval": None
                     }
         
-        # Si aucun intervalle n'a pu être calculé, renvoyer la prédiction simple
+        
         return {"prediction": float(prediction_val)}
 
     except Exception as e:
@@ -389,7 +375,7 @@ def get_equation(model_name):
                 "coefficients": model.coef_.tolist(),
                 "intercept": model.intercept_.tolist() if hasattr(model.intercept_, 'tolist') else model.intercept_
             }
-        elif hasattr(model, 'theta') and hasattr(model, 'b'): # Pour votre modèle custom
+        elif hasattr(model, 'theta') and hasattr(model, 'b'):
             return {
                 "type": "linear",
                 "features": features,

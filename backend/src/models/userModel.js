@@ -24,4 +24,4 @@ const userSchema = new mongoose.Schema(
 	{ timestamps: true } // timestamps ajoute createdAt et updatedAt automatiquement
 );
 
-export const User = mongoose.model("User", userSchema);// on crée le modèle User à partir du schéma userSchema et le nom de const c'est le nom dans le modèle MongoDB
+export const User = mongoose.model("User", userSchema);

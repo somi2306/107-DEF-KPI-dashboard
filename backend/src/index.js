@@ -16,23 +16,22 @@ import adminRoutes from "./routes/adminRoute.js";
 import userRoutes from "./routes/userRoute.js";
 import { clerkMiddleware } from '@clerk/express'
 
-// --- Configuration initiale ---
+
 dotenv.config();
 const app = express();
 
 const PORT = process.env.PORT || 5000;
 
-// +++ MODIFICATION POUR LE DÉPLOIEMENT +++
-// Définir l'URL du frontend autorisée en fonction de l'environnement
+
 const frontendURL = process.env.NODE_ENV === 'production' 
     ? process.env.FRONTEND_URL 
     : 'http://localhost:5173';
 
-// --- CONFIGURATION DE SOCKET.IO ---
+
 const server = http.createServer(app);
 const io = new Server(server, { 
   cors: {
-    origin: frontendURL, // Utiliser la variable ici aussi
+    origin: frontendURL,
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -41,7 +40,7 @@ const io = new Server(server, {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// --- GESTION DE L'ÉTAT GLOBAL ---
+
 export let analysisStatus = 'idle';
 export let pipelineStatus = {
   status: 'idle',
@@ -67,9 +66,8 @@ io.on('connection', (socket) => {
 });
 
 // --- MIDDLEWARES ---
-// +++ MODIFICATION POUR LE DÉPLOIEMENT +++
 app.use(cors({
-  origin: frontendURL, // Utiliser la variable ici
+  origin: frontendURL,
   credentials: true
 }));
 app.use(express.json())
@@ -77,7 +75,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(clerkMiddleware())
 
 
-// --- Définition des points d'accès de l'API ---
+// --- ROUTES ---
 
 app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
@@ -95,15 +93,11 @@ app.get('/api/analysis/status', (req, res) => {
 
 
 // --- Servir les fichiers statiques du frontend en production ---
-// NOTE: Cette section est utile pour Render, mais pas nécessaire pour Vercel car le frontend et le backend sont déployés séparément.
-// Vous pouvez la laisser, elle ne causera pas de problème.
 if (process.env.NODE_ENV === "production") {
   const buildPath = path.join(__dirname, '..', '..', 'frontend', 'dist');
-  // 1. Sert les fichiers statiques (CSS, JS, images)
+  // Sert les fichiers statiques (CSS, JS, images)
   app.use(express.static(buildPath));
-
   // 2. Middleware "catch-all" : Pour toute autre requête qui n'est pas une API
-  //    ou un fichier statique, renvoyer l'application React.
   app.use((req, res) => {
     res.sendFile(path.join(buildPath, 'index.html'));
   });

@@ -2,7 +2,7 @@ import { createContext, useState, useContext, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { api } from '../services/api';
-// import.meta.env.VITE_API_BASE_URL ou apiClient
+
 
 interface Notification {
   _id: string;

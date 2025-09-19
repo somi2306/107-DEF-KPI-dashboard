@@ -7,7 +7,6 @@ interface FeatureImportanceChartProps {
 }
 
 export const FeatureImportanceChart: React.FC<FeatureImportanceChartProps> = ({ data }) => {
-  // Formatter correct pour Tooltip
   const formatImportanceTooltip = (value: number, name: string) => {
     return [`${value.toFixed(4)}`, name];
   };
@@ -17,7 +16,6 @@ export const FeatureImportanceChart: React.FC<FeatureImportanceChartProps> = ({ 
     if (!weights || !data.features) {
       return [];
     }
-    // Si coefficients est un tableau imbriqué (ex: [[...]]), on prend le premier sous-tableau
     if (Array.isArray(weights) && Array.isArray(weights[0])) {
       weights = weights[0];
     }

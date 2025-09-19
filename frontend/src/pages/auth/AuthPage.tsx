@@ -4,8 +4,8 @@ import { Button } from "../../components/ui/button";
 import { useState } from "react";
 import { Input } from "../../components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
-import PasswordStrengthMeter from "../../components/PasswordStrengthMeter"; // Import PasswordStrengthMeter
-import AuthImagePattern from "../../components/AuthImagePattern"; // Import AuthImagePattern
+import PasswordStrengthMeter from "../../components/PasswordStrengthMeter";
+import AuthImagePattern from "../../components/AuthImagePattern"; 
 
 const AuthPage = () => {
   const { signIn, isLoaded: isSignInLoaded } = useSignIn();
@@ -23,7 +23,7 @@ const AuthPage = () => {
 
   if (!isSignInLoaded || !isSignUpLoaded) return null;
 
-  const signInWithOAuth = (strategy: "oauth_google" /*| "oauth_apple"*/) => {
+  const signInWithOAuth = (strategy: "oauth_google") => {
     signIn.authenticateWithRedirect({
       strategy,
       redirectUrl: "/sso-callback",
@@ -80,12 +80,8 @@ const AuthPage = () => {
   };
 
   return (
-    // Outer container for the two-column layout on large screens, adjusted width
     <div className="max-w-4xl w-full mx-auto bg-zinc-900 bg-opacity-50 backdrop-filter backdrop-blur-xl rounded-2xl shadow-xl overflow-hidden flex flex-col lg:flex-row relative z-10">
-      {/* Clerk CAPTCHA container for Smart CAPTCHA */}
       <div id="clerk-captcha"></div>
-      {/* Clerk CAPTCHA container for Smart CAPTCHA */}
-      {/* Left Side - Form Content */}
       <div className="p-8 flex-1">
         <h1 className="text-2xl font-bold text-white text-center mb-6">Bienvenue</h1>
 
@@ -151,7 +147,6 @@ const AuthPage = () => {
 
 <TabsContent value="signup">
   <div className="space-y-4 mt-4">
-    {/* First + Last name côte à côte */}
     <div className="flex gap-4">
       <Input
         type="text"
@@ -169,7 +164,7 @@ const AuthPage = () => {
       />
     </div>
 
-    {/* Email */}
+
     <Input
       type="email"
       placeholder="Email"
@@ -178,7 +173,7 @@ const AuthPage = () => {
       className="bg-zinc-800 border-zinc-700 text-white"
     />
 
-    {/* Password */}
+
     <Input
       type="password"
       placeholder="Mot de passe"
@@ -187,13 +182,11 @@ const AuthPage = () => {
       className="bg-zinc-800 border-zinc-700 text-white"
     />
 
-    {/* Error message */}
+
     {error && <p className="text-red-500 text-sm text-center">{error}</p>}
 
-    {/* Password strength */}
     <PasswordStrengthMeter password={password} />
 
-    {/* Button */}
     <Button
       onClick={handleSignUp}
       className="w-full bg-emerald-500 hover:bg-emerald-600 text-black"
@@ -226,27 +219,16 @@ const AuthPage = () => {
                 <img src="/google.png" alt="Google" className="size-5 mr-2" />
                 Continuer avec Google
               </Button>
-              {/* 
-              
-              <Button
-                onClick={() => signInWithOAuth("oauth_apple")}
-                variant="secondary"
-                className="w-full text-black border-zinc-200 h-11"
-              >
-                <img src="/apple.png" alt="Apple" className="size-5 mr-2" />
-                Continuer avec Apple
-              </Button>
-              */}
             </div>
           </>
         )}
       </div>
 
-      {/* Right Side - Auth Image Pattern */}
-      <div className="flex-1 hidden lg:block"> {/* This div will take up space and show the image on large screens */}
+
+      <div className="flex-1 hidden lg:block"> 
         <AuthImagePattern
-          title="Welcome to customized fertilizers direction" // Customize this title
-          subtitle="" // Customize this subtitle
+          title="Welcome to customized fertilizers direction" 
+          subtitle="" 
         />
       </div>
     </div>

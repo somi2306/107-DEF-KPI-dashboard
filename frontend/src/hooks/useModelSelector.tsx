@@ -10,7 +10,6 @@ export const useModelSelector = () => {
     const modelName = useMemo(() => {
         if (!modelType || !line || !target) return '';
 
-        // Elle ne supprime plus les caractères spéciaux comme '˃' ou ','.
         const cleanTargetName = target.name
             .replace(/\s+/g, '_')  // Remplace les espaces par des underscores
             .replace(/%/g, 'pct')   // Remplace '%' par 'pct'

@@ -10,7 +10,6 @@ const getNum = (values: FeatureValues, key: string): number => {
     return isNaN(val) ? 0 : val;
 };
 
-// --- FONCTION POUR OBTENIR LES NOMS DYNAMIQUES ---
 export function getFieldNames(line: 'D' | 'E' | 'F') {
     const prefix = line === 'D' ? 'D' : line === 'E' ? 'E' : 'F';
     const fic = `${prefix}FIC`;
@@ -29,16 +28,15 @@ export function getFieldNames(line: 'D' | 'E' | 'F') {
     } as Record<string, string>;
 }
 
-// --- CHAMPS CALCULÉS (restent constants) ---
+
 const DEBIT_ACP_TOTAL = 'Valeurs.somme Débit1+Débit2.Débit ACP M3/H';
 const DEBIT_BOUILLIE_TOTAL = 'Valeurs.Débit bouillie T/H 1 +Débit bouillie T/H 2.debit bouillie T/H';
 const RATIO_SOLIDE_LIQUIDE = 'Valeurs.(Recyclage T/H)/(debit bouillie T/H).Ratio Solide/Liquide';
 const RAPPORT_ACIDULATION = 'Valeurs.0 si ((Débit ACP 1+Débit ACP 2)*(%P2O5 AR29)*(Densité AR29))/(Débit PP*30*1000) <0,5 et ((Débit ACP 1+Débit ACP 2)*(%P2O5 AR29)*(Densité AR29))/(Débit PP*30*1000) sinon.Rapport acidulation Kg/M3';
 //const PROD_TSP_ACP = 'Valeurs.vide si (Débit ACP*%P2O5*Densité AR29)/(38500)=0 et (Débit ACP*%P2O5*Densité AR29)/(38500) sinon.Prod TSP/ACP M3/H';
-// Dans calculations.ts, modifiez la constante PROD_TSP_ACP
 const PROD_TSP_ACP = 'Valeurs.vide si (Débit ACP*%P2O5*Densité AR29)/(38500)=0 et (Débit ACP*%P2O5*Densité AR29)/(38500) sinon.Prod TSP/ACP M3/H';
 
-// --- CONFIGURATION DES CALCULS ---
+
 export function getCalculatedFieldsConfig(line: 'D' | 'E' | 'F'): Record<string, CalculatedField> {
     const fields = getFieldNames(line);
     

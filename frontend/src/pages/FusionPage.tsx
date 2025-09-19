@@ -5,9 +5,7 @@ import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { UploadCloud, CheckCircle, XCircle, Loader, AlertTriangle, FileText, BarChart2 } from 'lucide-react';
 
-// --- Définition des types ---
 
-// Pour gérer l'état des fichiers sélectionnés
 type FileState = {
   [key: string]: File | null;
 };
@@ -21,7 +19,7 @@ type PipelineResult = {
   details?: string;
 };
 
-// --- Composant réutilisable pour un groupe d'inputs ---
+
 const LigneInputGroup: React.FC<{
   ligne: 'D' | 'E' | 'F';
   onFileChange: (id: string, file: File | null) => void;
@@ -52,7 +50,7 @@ const LigneInputGroup: React.FC<{
 );
 
 
-// --- Composant Principal de la Page ---
+
 const FusionPage: React.FC = () => {
   const [files, setFiles] = useState<FileState>({});
   const [linesWithNewData, setLinesWithNewData] = useState<string[]>([]);
@@ -67,7 +65,7 @@ const FusionPage: React.FC = () => {
     isAnalysisRunning
   } = useAnalysis();
 
-  // Mettre à jour `linesWithNewData` lorsque les résultats du pipeline changent
+
   useEffect(() => {
     if (pipelineResults && pipelineResults.length > 0) {
       const successfulLines = pipelineResults
@@ -79,14 +77,14 @@ const FusionPage: React.FC = () => {
     }
   }, [pipelineResults]);
 
-  // Gère la file d'attente pour lancer les analyses en série
+
   useEffect(() => {
-    // Si une analyse n'est pas en cours et qu'il y a des lignes en attente
+
     if (!isAnalysisRunning && analysisQueue.length > 0) {
       const nextLine = analysisQueue[0];
       console.log(`Lancement de l'analyse pour la prochaine ligne en file d'attente : ${nextLine}`);
       startStatisticsGeneration(nextLine);
-      // Retire la ligne traitée de la file d'attente
+
       setAnalysisQueue(prevQueue => prevQueue.slice(1));
     }
   }, [isAnalysisRunning, analysisQueue, startStatisticsGeneration]);
@@ -100,11 +98,10 @@ const FusionPage: React.FC = () => {
     await startPipeline(files);
   };
 
-  // Met toutes les lignes avec de nouvelles données dans la file d'attente
   const handleLaunchAllAnalyses = () => {
     if (linesWithNewData.length > 0) {
       setAnalysisQueue([...linesWithNewData]);
-      setLinesWithNewData([]); // Vide la liste pour faire disparaître le bloc
+      setLinesWithNewData([]); 
     }
   };
 

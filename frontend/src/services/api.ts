@@ -56,37 +56,7 @@ export const api = {
     if (response.data.error) throw new Error(response.data.error);
     return response.data;
   },
-/*
-  getVisualization: async (modelType: string, line: string, imputation: string): Promise<Blob> => {
-    const response = await apiClient.get('/predictions/visualize', {
-      params: { model: modelType, ligne: line, imputation: imputation },
-      responseType: 'blob' 
-    });
-    return response.data;
-  },
 
-  getTreeData: async (modelType: string, line: string, targetName: string): Promise<any> => {
-  const response = await apiClient.get('/predictions/tree-data', {
-    params: { model: modelType, ligne: line, imputation: targetName }
-  });
-    return response.data;
-  },
-  
-  getTreeShape: async (modelType: string, line: string, targetName: string): Promise<TreeShape> => {
-  const response = await apiClient.get('/predictions/tree-shape', {
-    params: { model: modelType, ligne: line, imputation: targetName }
-  });
-    return response.data;
-  },
-
-  getAllTreeData: async (modelType: string, line: string, targetName: string): Promise<AllTreesData> => {
-  const response = await apiClient.get('/predictions/all-trees-data', {
-    params: { modelName: modelType, ligne: line, targetName: targetName }
-  });
-    if (response.data.error) throw new Error(response.data.error);
-    return response.data;
-  },
-*/
   getLearningCurveData: async (modelType: string, line: string, targetName: string): Promise<LearningCurveData> => {
   const response = await apiClient.get('/predictions/learning-curve', {
     params: { modelName: modelType, ligne: line, targetName: targetName }
@@ -167,12 +137,6 @@ getRelationStatistics: async (line: string, var1: string, var2: string): Promise
       throw error;
     }
   },
-  /*
-  getKpiData: async (): Promise<KpiData[]> => {
-    // CORRECTION : Utiliser API_BASE_URL pour pointer vers le bon endpoint de l'API backend
-  const response = await apiClient.get('/kpidata');
-    return response.data;
-  },*/
 };
 
 export const getRelations = async (line: string, var1: string, var2: string) => {
@@ -269,7 +233,7 @@ export const runFullPipelineInMemory = async (files: { [key: string]: File | nul
       },
     });
     return response.data;
-  } catch (error: any) { // Add type annotation here
+  } catch (error: any) { 
     if (error && error.response) {
       throw new Error(error.response.data.message || 'Erreur du serveur lors du lancement du pipeline.');
     }

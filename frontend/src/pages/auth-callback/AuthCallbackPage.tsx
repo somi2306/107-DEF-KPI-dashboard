@@ -1,4 +1,3 @@
-// src/app/pages/auth-callback/AuthCallbackPage.tsx
 import { Card, CardContent } from "@/components/ui/card";
 import { apiClient } from "@/lib/axios";
 import { useUser } from "@clerk/clerk-react";
@@ -27,7 +26,6 @@ const AuthCallbackPage = () => {
 			} catch (error) {
 				console.log("Error in auth callback", error);
 			} finally {
-				// CHANGE THIS LINE: Redirect to the actual HomePage
 				navigate("/hierarchical-data"); 
 			}
 		};

@@ -19,11 +19,9 @@ const TrainingPage: React.FC = () => {
   const [localTrainingError, setLocalTrainingError] = useState<string | null>(null);
   const [localIsTrainingRunning, setLocalIsTrainingRunning] = useState(false);
 
-  // Sélection utilisateur
   const [selectedLines, setSelectedLines] = useState<string[]>([]);
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
 
-  // Synchroniser les états locaux avec le contexte
   useEffect(() => {
     setLocalTrainingStatus(trainingStatus);
     setLocalTrainingError(trainingError);
@@ -50,7 +48,7 @@ const TrainingPage: React.FC = () => {
         <CardContent className="space-y-6">
 
           <div className="flex gap-8 items-start flex-wrap">
-            {/* Dropdown for lines */}
+            
             <div className="flex-[1] min-w-[180px]">
               <label className="block font-semibold mb-2">Lignes de Production</label>
               <DropdownMenu>
@@ -88,7 +86,7 @@ const TrainingPage: React.FC = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-            {/* Dropdown for models */}
+            
             <div className="flex-[2] min-w-[280px]">
               <label className="block font-semibold mb-2">Modèles</label>
               <DropdownMenu>

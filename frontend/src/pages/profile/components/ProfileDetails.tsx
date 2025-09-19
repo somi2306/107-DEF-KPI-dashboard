@@ -10,7 +10,7 @@ import { Plus, X } from "lucide-react";
 import { apiClient } from "@/lib/axios";
 import toast from "react-hot-toast";
 import { isClerkAPIResponseError } from "@clerk/shared";
-import { Checkbox } from "@/components/ui/checkbox"; // Importer Checkbox
+import { Checkbox } from "@/components/ui/checkbox"; 
 
 const ProfileDetails = () => {
   const { user, isLoaded } = useUser();
@@ -27,11 +27,7 @@ const ProfileDetails = () => {
   const [verificationCode, setVerificationCode] = useState("");
   const [isVerifyingEmail, setIsVerifyingEmail] = useState(false);
   const [currentVerificationEmailId, setCurrentVerificationEmailId] = useState<string | null>(null);
-
-  // Nouveaux états pour les options de la boîte de dialogue email
   const [setPrimaryChecked, setSetPrimaryChecked] = useState(false);
-
-  // État pour afficher l'invite de vérification Clerk (identique au mot de passe)
   const [showEmailVerificationPrompt, setShowEmailVerificationPrompt] = useState(false);
 
 
@@ -157,16 +153,15 @@ const ProfileDetails = () => {
   const handleAddEmail = async () => {
     if (!newEmail) return;
 
-    setShowEmailVerificationPrompt(false); // Toujours cacher l'invite Clerk initialement
+    setShowEmailVerificationPrompt(false); 
 
     try {
         const newEmailObject = await user.createEmailAddress({ email: newEmail });
         if (newEmailObject) {
-            // Lancer la vérification pour la nouvelle adresse email créée
             await newEmailObject.prepareVerification({ strategy: "email_code" });
             setCurrentVerificationEmailId(newEmailObject.id);
-            setIsVerifyingEmail(true); // Passer à l'étape de vérification
-            setNewEmail(""); // Vider le champ du nouvel email après l'envoi du code
+            setIsVerifyingEmail(true); 
+            setNewEmail(""); 
             toast.success("Code de vérification envoyé à votre nouvel email.");
         }
     } catch (error: any) {
@@ -175,10 +170,6 @@ const ProfileDetails = () => {
             ? error.errors[0]?.longMessage || "Échec de l'ajout de l'adresse email."
             : "Échec de l'ajout de l'adresse email.";
         toast.error(errorMessage);
-
-        // Si Clerk demande spécifiquement une vérification supplémentaire (ex: ré-authentification)
-        // cela peut encore se produire pour des opérations très sensibles ou si les règles de sécurité sont strictes.
-        // Pour l'ajout d'email, la stratégie email_code est généralement suffisante.
         if (errorMessage.includes("additional verification")) {
             setShowEmailVerificationPrompt(true);
         }
@@ -189,20 +180,18 @@ const ProfileDetails = () => {
     if (!currentVerificationEmailId || !verificationCode) return;
 
     try {
-        // Trouver l'objet email qui nécessite une vérification en utilisant son ID
         const emailToVerify = user.emailAddresses.find(e => e.id === currentVerificationEmailId);
 
         if (emailToVerify) {
             const verifiedEmail = await emailToVerify.attemptVerification({ code: verificationCode });
 
             if (verifiedEmail) {
-                // Si "Définir comme principal" était coché, tenter de le définir
                 if (setPrimaryChecked) {
                     await user.update({ primaryEmailAddressId: verifiedEmail.id });
                     toast.success("Email défini comme principal.");
                 }
 
-                await user.reload(); // Recharger l'utilisateur pour mettre à jour la liste des adresses email et le statut principal
+                await user.reload(); 
                 setEmailAddresses(user.emailAddresses.map(email => ({
                     id: email.id,
                     email: email.emailAddress,
@@ -210,12 +199,12 @@ const ProfileDetails = () => {
                     verification: email.verification,
                 })));
 
-                setAddEmailDialogOpen(false); // Fermer la boîte de dialogue
-                setNewEmail(""); // Vider les champs
+                setAddEmailDialogOpen(false); 
+                setNewEmail(""); 
                 setVerificationCode("");
-                setIsVerifyingEmail(false); // Réinitialiser l'état de vérification
-                setCurrentVerificationEmailId(null); // Effacer l'ID de l'email stocké
-                setSetPrimaryChecked(false); // Réinitialiser les cases à cocher
+                setIsVerifyingEmail(false);
+                setCurrentVerificationEmailId(null); 
+                setSetPrimaryChecked(false); 
                 toast.success("Email vérifié et ajouté ! 🎉");
             }
         } else {
@@ -281,14 +270,7 @@ const ProfileDetails = () => {
       redirectUrl: "/sso-callback",
     });
   };
-/*
-  const handleConnectApple = () => {
-    user.createExternalAccount({
-      strategy: "oauth_apple",
-      redirectUrl: "/sso-callback",
-    });
-  };
-*/
+
   return (
     <div className="space-y-6">
       {/* Section Profil */}
@@ -360,7 +342,7 @@ const ProfileDetails = () => {
         </div>
       </div>
 
-      {/* Adresses email */}
+      
       <div className="space-y-4 pt-6 border-t border-slate-200">
         <h3 className="text-xl font-semibold text-slate-800">Adresses email</h3>
         {emailAddresses.map((email) => (
@@ -376,7 +358,7 @@ const ProfileDetails = () => {
                   Définir comme principal
                 </Button>
               )}
-              {/* Ajouter un bouton "Vérifier" pour les emails non vérifiés */}
+              
               {email.verification.status !== "verified" && (
                   <Button variant="ghost" size="sm" onClick={() => {
                       setCurrentVerificationEmailId(email.id);
@@ -400,7 +382,6 @@ const ProfileDetails = () => {
         </Button>
       </div>
 
-      {/* Boîte de dialogue Ajouter un email */}
       <Dialog open={addEmailDialogOpen} onOpenChange={(open) => { setAddEmailDialogOpen(open); if (!open) { setIsVerifyingEmail(false); setNewEmail(""); setVerificationCode(""); setSetPrimaryChecked(false); setShowEmailVerificationPrompt(false); } }}>
         <DialogContent className="bg-white border-slate-300">
           <DialogHeader>
@@ -478,7 +459,7 @@ const ProfileDetails = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Comptes connectés */}
+      
       <div className="space-y-4 pt-6 border-t border-slate-200">
         <h3 className="text-xl font-semibold text-slate-800">Comptes connectés</h3>
         {connectedAccounts.map((account) => (
@@ -492,12 +473,6 @@ const ProfileDetails = () => {
                 <img src="/google.png" alt="Google" className="size-5 mr-2" />
                 Connecter Google
             </Button>
-            {/*
-            <Button variant="outline" className="w-full bg-white border-slate-300 text-slate-800 hover:bg-slate-100" onClick={handleConnectApple} disabled={isSaving}>
-                <img src="/apple.png" alt="Apple" className="size-5 mr-2" />
-                Connecter Apple
-            </Button>
-            */}
         </div>
       </div>
     </div>

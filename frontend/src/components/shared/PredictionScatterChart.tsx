@@ -25,19 +25,17 @@ export const PredictionScatterChart: React.FC<PredictionScatterChartProps> = ({ 
     maxVal + 0.1 * range
   ];
 
-  // Formatage des ticks comme dans matplotlib
+
   const formatTick = (tickValue: number) => {
-    // Pour les très grandes ou petites valeurs, utiliser la notation scientifique
     if (Math.abs(tickValue) >= 1e4 || (Math.abs(tickValue) < 1e-2 && tickValue !== 0)) {
       return tickValue.toExponential(2);
     }
     
-    // Pour les valeurs "normales", afficher avec 2 décimales max
     const formatted = Number(tickValue.toFixed(2));
     return formatted.toString();
   };
 
-  // Formatage du tooltip
+ 
   const renderTooltip = (props: any) => {
     const { active, payload } = props;
     if (!active || !payload || !payload.length) return null;

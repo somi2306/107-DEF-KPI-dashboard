@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card';
 import { Book } from "lucide-react";
 
-// Structure de données contenant toutes les définitions des KPIs
+
 const kpiDictionary = [
   {
     title: "Informations Générales",
@@ -153,7 +153,7 @@ const kpiDictionary = [
   }
 ];
 
-// Un composant réutilisable pour afficher une seule définition
+
 const DefinitionItem: React.FC<{ name: string; description: string }> = ({ name, description }) => (
   <div className="mb-4 p-3 rounded-lg bg-emerald-50 border-l-4 border-emerald-500 transition-all hover:bg-emerald-100 hover:shadow-sm">
     <p className="font-semibold text-emerald-800 text-base">{name}</p>
@@ -203,10 +203,6 @@ const HierarchicalDataPage: React.FC = () => {
           </CardContent>
         </Card>
       ))}
-      {/*<div className="text-center text-sm text-emerald-600 py-4 border-t border-emerald-200 mt-6">
-        © {new Date().getFullYear()} OCP Group - Tous droits réservés
-      </div>
-     */}
 
     </div>
   );

@@ -1,6 +1,6 @@
 import React from 'react';
 import katex from 'katex';
-import 'katex/dist/katex.min.css'; // Importation du CSS de KaTeX
+import 'katex/dist/katex.min.css';
 import type { EquationData } from '../../types';
 
 const escapeLatex = (text: string): string => {
@@ -36,7 +36,6 @@ export const EquationDisplay: React.FC<{ data: EquationData }> = ({ data }) => {
         const sign = coef >= 0 ? '+' : '-';
         const shortName = escapeLatex(feature.split('.').pop() ?? '');
         const coefString = formatNumberForLatex(Math.abs(coef));
-        // Ajout de la commande \textcolor{emerald}{...}
         return ` ${sign} ${coefString} \\cdot \\textcolor{green}{\\text{[${shortName}]}}`;
       })
       .join('');

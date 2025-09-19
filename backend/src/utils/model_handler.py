@@ -126,9 +126,7 @@ if __name__ == '__main__':
             sys.stderr.write(f"Recherche de modèle et données pour {model_name}...\n")
 
             if not os.path.exists(model_path) or not os.path.exists(data_path):
-                # Cette partie ne devrait plus être exécutée si le script de pré-entraînement a tourné
                 sys.stderr.write("Modèle ou données pré-traitées non trouvés, entrainement en cours...\n")
-                # Ici, on pourrait lancer un entraînement "just-in-time" si nécessaire
                 print(json.dumps({"error": "Model not pre-trained. Please run the pretrain_models.py script first."}))
                 sys.exit(1)
             else:

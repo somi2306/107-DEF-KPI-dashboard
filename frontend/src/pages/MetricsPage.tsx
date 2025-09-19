@@ -15,7 +15,7 @@ import { LearningCurveChart } from '../components/shared/LearningCurveChart';
 import { PredictionScatterChart } from '../components/shared/PredictionScatterChart';
 import { Loader} from 'lucide-react';
 import {Sliders} from 'lucide-react';
-// Composant pour afficher les noms de variables hiérarchiques
+
 const HierarchicalVariableName: React.FC<{ parts: string[] }> = ({ parts }) => {
     return (
         <div className="flex flex-col">
@@ -39,11 +39,11 @@ const HierarchicalVariableName: React.FC<{ parts: string[] }> = ({ parts }) => {
 export const MetricsPage: React.FC = () => {
     const { line, setLine, modelType, setModelType, target, setTarget, modelName, modelDisplayName } = useModelSelector();
     const [metrics, setMetrics] = useState<ModelMetrics | null>(null);
-    // States for hierarchical target menu
+
     const [selectedTargetName, setSelectedTargetName] = useState<string | null>(null);
     const [searchTermTarget, setSearchTermTarget] = useState('');
     const [isTargetFocused, setIsTargetFocused] = useState(false);
-        // Hierarchical target variable list (same as PredictionPage)
+
         const targetVarsList = [
   ['TSP', "Cuve D'attaque (bouillie)", 'Densité bouillie'],
   ['TSP', "Cuve D'attaque (bouillie)", '%P2O5 TOT bouillie'],
@@ -74,7 +74,6 @@ export const MetricsPage: React.FC = () => {
 ];
 
 
-        // Group by first level
         const groupByFirstLevel = (variables: { fullName: string, parts: string[] }[]) => {
             const grouped: { [key: string]: { fullName: string, parts: string[] }[] } = {};
             variables.forEach(variable => {
