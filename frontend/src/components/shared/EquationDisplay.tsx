@@ -1,6 +1,6 @@
 import React from 'react';
 import katex from 'katex';
-import 'katex/dist/katex.min.css'; // Importation du CSS de KaTeX
+import 'katex/dist/katex.min.css';
 import type { EquationData } from '../../types';
 
 const escapeLatex = (text: string): string => {
@@ -36,7 +36,6 @@ export const EquationDisplay: React.FC<{ data: EquationData }> = ({ data }) => {
         const sign = coef >= 0 ? '+' : '-';
         const shortName = escapeLatex(feature.split('.').pop() ?? '');
         const coefString = formatNumberForLatex(Math.abs(coef));
-        // Ajout de la commande \textcolor{emerald}{...}
         return ` ${sign} ${coefString} \\cdot \\textcolor{green}{\\text{[${shortName}]}}`;
       })
       .join('');
@@ -46,7 +45,13 @@ export const EquationDisplay: React.FC<{ data: EquationData }> = ({ data }) => {
     const createMarkup = () => {
         try {
             // Utilise KaTeX pour convertir la chaîne LaTeX en HTML
-            return { __html: katex.renderToString(fullEquation, { throwOnError: false, displayMode: false }) };
+            return { __html: katex.renderToString(fullEquation, { 
+              throwOnError: false, 
+              displayMode: false,
+              // Options pour améliorer l'affichage mobile
+              fleqn: true, // Équation alignée à gauche
+              maxSize: 14, // Taille maximale
+            }) };
         } catch (e) {
             console.error(e);
             return { __html: 'Erreur lors du rendu de l\'équation' };
@@ -56,14 +61,17 @@ export const EquationDisplay: React.FC<{ data: EquationData }> = ({ data }) => {
     return (
       <div className="equation-container">
         <h4 className="text-lg font-medium">
-  Équation du Modèle Linéaire : 
-</h4>
-<br/>
+          Équation du Modèle Linéaire : 
+        </h4>
+        <br/>
 
-        <div
-          className="equation-content text-left p-4 bg-gray-100 rounded-md text-lg"
-          dangerouslySetInnerHTML={createMarkup()}
-        />
+        {/* Conteneur avec défilement horizontal pour mobile */}
+        <div className="overflow-x-auto">
+          <div
+            className="equation-content text-left p-4 bg-gray-100 rounded-md text-lg min-w-min"
+            dangerouslySetInnerHTML={createMarkup()}
+          />
+        </div>
       </div>
     );
   }

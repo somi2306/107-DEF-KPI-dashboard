@@ -120,17 +120,12 @@ const cleanTargetName = (targetName) => {
 };
 
 const getModelFilePath = (modelName, fileSuffix) => {
-    // Cette fonction assume que les fichiers sont toujours stockés localement,
-    // ce qui n'est plus le cas. Elle doit être adaptée ou supprimée si ces routes
-    // doivent maintenant récupérer les données depuis MongoDB.
-    // Pour l'instant, nous laissons tel quel en supposant qu'elle pourrait être utilisée
-    // pour d'autres fonctionnalités.
     const modelsDir = path.join(__dirname, '..', 'utils', 'models');
     return path.join(modelsDir, `${modelName}${fileSuffix}`);
 };
 
 
-// predictionController.js - À MODIFIER
+
 
 export const getLearningCurveData = async (req, res) => {
   const { modelName, ligne, targetName } = req.query;

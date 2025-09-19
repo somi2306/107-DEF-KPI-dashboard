@@ -12,11 +12,11 @@ const ProfilePage = () => {
   return (
     <main className='p-4 sm:p-6 lg:p-8 bg-slate-50 min-h-screen'>
       <div className="mx-auto max-w-6xl">
-        {/*<h1 className="text-2xl sm:text-3xl font-bold mb-6 text-slate-800">Paramètres du compte</h1>*/}
+
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr] gap-6">
-            {/* Navigation tabs */}
+            
             <Card className="bg-white pt-2 shadow-sm">
               <CardContent className="p-0">
                 <TabsList className="flex flex-col h-auto p-2 bg-transparent justify-start items-start space-y-1">
@@ -37,7 +37,7 @@ const ProfilePage = () => {
             </Card>
 
             <div>
-              {/* Profile content */}
+             
               <TabsContent value="profile">
                 <Card className="bg-white">
                   <CardHeader>
@@ -50,7 +50,7 @@ const ProfilePage = () => {
                 </Card>
               </TabsContent>
 
-              {/* Security content */}
+              
               <TabsContent value="security">
                 <Card className="bg-white">
                   <CardHeader>

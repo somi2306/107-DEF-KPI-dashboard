@@ -1,4 +1,3 @@
-// src/pages/AdminPage.tsx
 import React from "react";
 
 const AdminPage: React.FC = () => {

@@ -4,16 +4,13 @@ import { api } from '../services/api';
 import { PRODUCTION_LINES, MODELS, TARGET_VARIABLES } from '../lib/constants';
 import { getCalculatedFieldsConfig, getCalculatedFieldNames } from '../lib/calculations';
 import type { FeatureValues } from '../types';
-
-// Ajout du type pour la réponse de prédiction//
-//import type { PredictionResponse } from '../services/api';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem} from '../components/ui/select';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Loader, Cpu} from 'lucide-react';
 
-// Composant pour afficher les noms de variables hiérarchiques
+
 const HierarchicalVariableName: React.FC<{ parts: string[] }> = ({ parts }) => {
   return (
     <div className="flex flex-col">
@@ -45,12 +42,10 @@ export const PredictionPage: React.FC = () => {
   const [confidenceInterval, setConfidenceInterval] = useState<[number, number] | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-
-    // États pour le menu hiérarchique
     const [searchTermTarget, setSearchTermTarget] = useState('');
     const [isTargetFocused, setIsTargetFocused] = useState(false);
     
-// Dans PredictionPage.tsx, modifiez simplement :
+
 const isValidLine = (line: string | null): line is 'D' | 'E' | 'F' => {
   return line === 'D' || line === 'E' || line === 'F';
 };
@@ -106,7 +101,7 @@ const calculatedFields = useMemo(() =>
       ['PRODUIT FINI TSP', 'Granulométrie', '˃2-˃4mm']
     ];
 
-    // Grouper les variables cibles par premier niveau
+
     const groupByFirstLevel = (variables: { fullName: string, parts: string[] }[]) => {
       const grouped: { [key: string]: { fullName: string, parts: string[] }[] } = {};
       variables.forEach(variable => {
@@ -130,7 +125,6 @@ const calculatedFields = useMemo(() =>
       return transformAndGroup(targetVarsList);
     }, [targetVarsList]);
 
-    // Filtrer les variables cibles par recherche
     const filterTargetVariablesBySearch = (variables: { [key: string]: { fullName: string, parts: string[] }[] }) => {
       if (!searchTermTarget) return variables;
       const filtered: { [key: string]: { fullName: string, parts: string[] }[] } = {};
@@ -181,7 +175,6 @@ const calculatedFields = useMemo(() =>
       setPrediction(null);
       try {
         const features = await api.getModelFeatures(line);
-        //console.log('Features récupérés du backend:', features);
         setAllPossibleFeatures(features);
         const initialValues = features.reduce((acc: FeatureValues, f) => ({ ...acc, [f]: '' }), {});
         setFeatureValues(initialValues);
@@ -225,7 +218,7 @@ useEffect(() => {
       setError(null);
       setPrediction(null);
       setPredictionError(null);
-      setConfidenceInterval(null); // Réinitialiser aussi l'intervalle
+      setConfidenceInterval(null); 
 
       const featuresAsNumbers = Object.entries(featureValues).reduce((acc, [key, value]) => {
         const num = parseFloat(value);
@@ -240,15 +233,13 @@ useEffect(() => {
       }
 
       try {
-        // Lancer les deux appels API en parallèle
+
         const [predictionResult, metricsResult] = await Promise.all([
           api.getPrediction(modelName, featuresAsNumbers),
           api.getModelMetrics(modelName)
         ]);
 
-        // Maintenant que nous avons TOUTES les données, nous mettons à jour l'état en une seule fois.
-
-        // 1. Traiter le résultat de la prédiction
+        //  Traiter le résultat de la prédiction
         if (typeof predictionResult === 'object' && predictionResult !== null && 'prediction' in predictionResult) {
           setPrediction(predictionResult.prediction);
           if ('confidence_interval' in predictionResult && Array.isArray(predictionResult.confidence_interval)) {
@@ -256,7 +247,7 @@ useEffect(() => {
           }
         }
 
-        // 2. Traiter le résultat des métriques
+        //  Traiter le résultat des métriques
         if (typeof metricsResult.rmse === 'number') {
           setPredictionError(metricsResult.rmse);
         } else if (typeof metricsResult.mse === 'number') {
@@ -423,24 +414,6 @@ useEffect(() => {
                     )}
                   </div>
                 )}
-                
-                <div className="mt-8">
-                    {/* {isLoadingVis && <p>Chargement de la visualisation...</p>}
-                    {errorVis && <div className="p-4 bg-red-100 text-red-700 rounded-md">{errorVis}</div>}
-                    {visualization && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Visualisation d'un Arbre de Décision</CardTitle>
-                                <CardDescription>
-                                    Ceci est un seul arbre du modèle {modelDisplayName}. Sa profondeur est limitée pour la lisibilité.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <img src={visualization} alt="Visualisation de l'arbre de décision" className="w-full border rounded-md" />
-                            </CardContent>
-                        </Card>
-                    )} */}
-                </div>
             </CardContent>
         </Card>
         </div>

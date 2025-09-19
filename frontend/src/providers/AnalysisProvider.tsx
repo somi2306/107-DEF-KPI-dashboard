@@ -10,12 +10,10 @@ interface AnalysisContextType {
   startPipeline: (files: { [key: string]: File | null }) => Promise<void>;
   stopPipeline: () => void;
   startStatisticsGeneration: (line: string) => void;
-    // --- Ajouts pour l'entraînement ---
   isTrainingRunning: boolean;
   trainingError: string | null;
   trainingStatus: string | null;
   startTraining: (lines?: string[], models?: string[]) => Promise<void>;
-  // ------------------------------------
 }
 
 const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined);
@@ -37,11 +35,10 @@ export const AnalysisProvider: React.FC<AnalysisProviderProps> = ({ children }) 
   const [isPipelineRunning, setIsPipelineRunning] = useState(false);
   const [pipelineResults, setPipelineResults] = useState<any[]>([]);
   const [pipelineError, setPipelineError] = useState<string | null>(null);
-  // --- Nouveaux états pour l'entraînement ---
   const [isTrainingRunning, setIsTrainingRunning] = useState(false);
   const [trainingError, setTrainingError] = useState<string | null>(null);
   const [trainingStatus, setTrainingStatus] = useState<string | null>(null);
-  // -----------------------------------------
+
   const checkPipelineStatus = useCallback(async () => {
     try {
       const status = await api.getPipelineStatus();
@@ -68,10 +65,9 @@ export const AnalysisProvider: React.FC<AnalysisProviderProps> = ({ children }) 
     }
   }, []);
 
-    // --- Nouvelle fonction pour vérifier le statut de l'entraînement ---
   const checkTrainingStatus = useCallback(async () => {
     try {
-      const status = await api.getTrainingStatus(); // à créer dans api.ts
+      const status = await api.getTrainingStatus(); 
       setIsTrainingRunning(status.status === 'running');
 
       if (status.status === 'finished') {
@@ -86,16 +82,16 @@ export const AnalysisProvider: React.FC<AnalysisProviderProps> = ({ children }) 
       setIsTrainingRunning(false);
     }
   }, []);
-  // -------------------------------------------------------------------
+
 
   useEffect(() => {
     checkPipelineStatus();
     checkAnalysisStatus();
-    checkTrainingStatus(); // Vérifier aussi au démarrage
+    checkTrainingStatus(); 
     const interval = setInterval(() => {
       checkPipelineStatus();
       checkAnalysisStatus();
-      checkTrainingStatus(); // Vérifier aussi au démarrage
+      checkTrainingStatus(); 
     }, 5000);
     return () => clearInterval(interval);
   }, [checkPipelineStatus, checkAnalysisStatus,checkTrainingStatus]);
@@ -104,10 +100,9 @@ export const AnalysisProvider: React.FC<AnalysisProviderProps> = ({ children }) 
     setIsAnalysisRunning(true);
     try {
       await api.generateStatisticsFromMongoDB(line);
-      // Le statut sera mis à jour via le polling de checkAnalysisStatus
     } catch (error) {
       console.error("Erreur lors du lancement de l'analyse:", error);
-      setIsAnalysisRunning(false); // Remettre à false uniquement en cas d'erreur immédiate
+      setIsAnalysisRunning(false); 
     }
   };
 
@@ -132,7 +127,7 @@ export const AnalysisProvider: React.FC<AnalysisProviderProps> = ({ children }) 
 
   };
 
-  // --- Nouvelle fonction pour démarrer l'entraînement ---
+
   const startTraining = async (lines?: string[], models?: string[]) => {
     setIsTrainingRunning(true);
     setTrainingError(null);
@@ -148,7 +143,7 @@ export const AnalysisProvider: React.FC<AnalysisProviderProps> = ({ children }) 
       setIsTrainingRunning(false);
     }
   };
-  // ----------------------------------------------------
+
 
   const stopPipeline = () => {
     console.log("Annulation du pipeline demandée.");
@@ -163,12 +158,10 @@ export const AnalysisProvider: React.FC<AnalysisProviderProps> = ({ children }) 
     startStatisticsGeneration,
     startPipeline,
     stopPipeline,
-        // --- Ajouts pour l'entraînement ---
     isTrainingRunning,
     trainingError,
     trainingStatus,
   startTraining
-    // ------------------------------------
   };
 
   return (

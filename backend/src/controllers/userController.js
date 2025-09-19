@@ -1,13 +1,9 @@
 import { User } from "../models/userModel.js";
-
-// Dynamically import clerkClient if it's only used in specific functions
-// This is a placeholder for direct API calls, if you remove clerkClient completely,
-// ensure all other clerkClient calls are also replaced with fetch to Clerk API.
 import { clerkClient } from "@clerk/clerk-sdk-node";
 
 export const getAllUsers = async (req, res, next) => {
 	try {
-		const currentUserId = req.auth().userId; // Use req.auth() as a function
+		const currentUserId = req.auth().userId; 
 		const users = await User.find({ clerkId: { $ne: currentUserId } });
 		res.status(200).json(users);
 	} catch (error) {
@@ -16,19 +12,19 @@ export const getAllUsers = async (req, res, next) => {
 };
 
 
-// Update User Profile
+
 export const updateUserProfile = async (req, res, next) => {
     try {
-        const userId = req.auth().userId; // Use req.auth() as a function
+        const userId = req.auth().userId; 
         const { firstName, lastName, imageUrl } = req.body;
 
-        const { clerkClient } = await import("@clerk/clerk-sdk-node"); // Dynamically import if not global
+        const { clerkClient } = await import("@clerk/clerk-sdk-node"); 
         await clerkClient.users.updateUser(userId, {
             firstName: firstName,
             lastName: lastName,
         });
 
-        // Update your local MongoDB user profile
+        
         const updatedUser = await User.findOneAndUpdate(
             { clerkId: userId },
             { fullName: `${firstName || ""} ${lastName || ""}`.trim(), imageUrl },
@@ -46,11 +42,11 @@ export const updateUserProfile = async (req, res, next) => {
     }
 };
 
-// NEW: Add Email Address (Backend handles interaction with Clerk API)
+
 export const addEmailAddress = async (req, res, next) => {
     try {
         const userId = req.auth().userId;
-        const { emailAddress, setPrimary, markVerified } = req.body; // Added setPrimary and markVerified
+        const { emailAddress, setPrimary, markVerified } = req.body; 
 
         if (!userId) {
             return res.status(401).json({ message: "Unauthorized - User ID not found" });
@@ -75,9 +71,6 @@ export const addEmailAddress = async (req, res, next) => {
             body: JSON.stringify({
                 user_id: userId,
                 email_address: emailAddress,
-                // Clerk's API generally doesn't allow 'mark as verified' directly on creation without verification flow,
-                // and 'set primary' is a separate step after verification.
-                // We'll rely on the verification flow to handle primary/verified status.
             })
         });
 
@@ -95,7 +88,7 @@ export const addEmailAddress = async (req, res, next) => {
     }
 };
 
-// NEW: Attempt Email Address Verification (Backend handles interaction with Clerk API)
+
 export const attemptEmailAddressVerification = async (req, res, next) => {
     try {
         const { emailAddressId, code } = req.body;
@@ -134,11 +127,11 @@ export const attemptEmailAddressVerification = async (req, res, next) => {
     }
 };
 
-// NEW: Update Password (Backend handles interaction with Clerk API)
+
 export const updatePassword = async (req, res, next) => {
     try {
         const userId = req.auth().userId;
-        const { newPassword, currentPassword } = req.body; // Clerk API requires current password for some flows
+        const { newPassword, currentPassword } = req.body; 
 
         if (!userId) {
             return res.status(401).json({ message: "Unauthorized - User ID not found" });
@@ -156,12 +149,6 @@ export const updatePassword = async (req, res, next) => {
 
         const requestBody = {
             password: newPassword,
-            // Clerk's backend API for `updateUser` typically doesn't require `currentPassword`
-            // unless you are using specific `User.updatePassword` methods on the frontend SDK that need it.
-            // For direct API, it's usually just sending the new password.
-            // If you still encounter "additional verification," it means Clerk's security policies
-            // for password changes require re-authentication or a special flow, which is best handled by their SDK or custom challenge flow.
-            // For now, we proceed with direct update.
         };
 
         const response = await fetch(clerkApiUrl, {
@@ -179,9 +166,6 @@ export const updatePassword = async (req, res, next) => {
             console.error("Clerk API error during password update:", data);
             throw new Error(data.errors?.[0]?.longMessage || "Failed to update password.");
         }
-
-        // After successfully updating password in Clerk, also update local user model if necessary (e.g., if you store password hashes, though generally not recommended when using Clerk)
-        // For this example, we assume password is solely managed by Clerk and no local update is needed beyond what updateUserProfile handles for other fields.
         res.status(200).json({ message: "Password updated successfully!" });
     } catch (error) {
         console.error("Error updating password:", error);
@@ -190,7 +174,7 @@ export const updatePassword = async (req, res, next) => {
 };
 
 
-// Get all active sessions for the current user using direct REST API
+
 export const getAllUserSessions = async (req, res, next) => {
   try {
     const userId = req.auth().userId;
@@ -227,10 +211,10 @@ export const getAllUserSessions = async (req, res, next) => {
 };
 
 
-// Revoke a specific user session using direct REST API
+
 export const revokeUserSession = async (req, res, next) => {
     try {
-        const userId = req.auth().userId; // Use req.auth() as a function
+        const userId = req.auth().userId; 
         const { sessionId } = req.params;
 
         if (!userId) {
@@ -248,7 +232,7 @@ export const revokeUserSession = async (req, res, next) => {
         const clerkApiUrl = `https://api.clerk.dev/v1/sessions/${sessionId}/revoke`;
 
         const response = await fetch(clerkApiUrl, {
-            method: 'POST', // Revoke is typically a POST operation
+            method: 'POST', 
             headers: {
                 'Authorization': `Bearer ${secretKey}`,
                 'Content-Type': 'application/json'
@@ -260,7 +244,7 @@ export const revokeUserSession = async (req, res, next) => {
             throw new Error(`Clerk API error: ${response.status} - ${errorData.errors?.[0]?.longMessage || response.statusText}`);
         }
 
-        const revokedSession = await response.json(); // Get response for revoked session
+        const revokedSession = await response.json(); 
         res.status(200).json({ message: "Session revoked successfully", revokedSession });
     } catch (error) {
         console.error("Error revoking user session:", error);

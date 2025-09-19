@@ -5,7 +5,6 @@ import { Loader } from "lucide-react";
 import { useEffect } from "react";
 
 const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-    // 'userId' de useAuth est le 'clerkId' dont nous avons besoin
     const { getToken, userId, isLoaded, isSignedIn } = useAuth();
     const { checkAdminStatus } = useAuthStore();
 
@@ -23,9 +22,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         });
 
         const initAuth = async () => {
-            // On vérifie que l'utilisateur est connecté et que nous avons son ID
             if (isSignedIn && userId) {
-                // On passe le userId (clerkId) à notre fonction
                 await checkAdminStatus(userId);
             }
         };
@@ -35,7 +32,6 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return () => {
             apiClient.interceptors.request.eject(interceptor);
         };
-    // On garde les dépendances correctes pour s'assurer que l'effet se déclenche au bon moment
     }, [isLoaded, isSignedIn, userId, getToken, checkAdminStatus]);
 
     if (!isLoaded) {

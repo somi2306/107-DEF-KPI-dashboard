@@ -58,7 +58,7 @@ def save_statistics_to_mongodb(line, statistics_data):
     try:
         db = client['107_DEF_KPI_dashboard']
         
-        # 1. Sauvegarder les variables individuellement
+        #  Sauvegarder les variables individuellement
         variables_collection = db['statistics_variables']
         variables_count = 0
         
@@ -76,7 +76,7 @@ def save_statistics_to_mongodb(line, statistics_data):
                 )
                 variables_count += 1
         
-        # 2. Sauvegarder les relations individuellement
+        #  Sauvegarder les relations individuellement
         relations_collection = db['statistics_relations']
         relations_count = 0
         
@@ -106,7 +106,7 @@ def save_statistics_to_mongodb(line, statistics_data):
                 )
                 relations_count += 1
         
-        # 3. Sauvegarder les métadonnées principales
+        #  Sauvegarder les métadonnées principales
         main_collection = db['statistics_results']
         main_doc = {
             "Ligne": line,
@@ -748,7 +748,7 @@ def analyze_all_lines():
         print(f"LANCEMENT DE L'ANALYSE POUR LA LIGNE: {line}")
         print(f"{'='*80}")
         
-        result = analyze_file_from_mongodb(line)  # Plus de paramètre output_folder
+        result = analyze_file_from_mongodb(line)  
         results[line] = result
         
         print(f"\n⏳ Attente de 2 secondes avant la prochaine ligne...")
@@ -772,7 +772,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         line_to_analyze = sys.argv[1]
         print(f"Argument détecté. Lancement de l'analyse pour la ligne unique : {line_to_analyze}")
-        analyze_file_from_mongodb(line_to_analyze)  # Sans paramètre output_folder
+        analyze_file_from_mongodb(line_to_analyze) 
     else:
         print("ℹ️ Aucun argument détecté. Lancement de l'analyse pour toutes les lignes (D, E, F).")
         analyze_all_lines()

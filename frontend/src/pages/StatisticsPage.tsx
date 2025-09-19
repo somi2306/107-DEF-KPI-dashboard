@@ -15,9 +15,7 @@ import { InteractiveScatterPlot } from '../components/shared/InteractiveScatterP
 import { InteractiveNormalDistribution } from '../components/shared/InteractiveNormalDistribution';
 import { InteractiveFrequencyPolygon } from '../components/shared/InteractiveFrequencyPolygon';
 import { InteractiveScatterPlotPlotly } from '../components/shared/InteractiveScatterPlotPlotly';
-//import { useAnalysis } from '../providers/AnalysisProvider';
 import { BarChart2} from 'lucide-react';
-// Types pour les sélections d'analyse
 type AnalysisType = 'descriptive' | 'relations';
 type DescriptiveSubType = 'quantitative' | 'qualitative';
 type RelationsSubType = 'qualitative_qualitative' | 'quantitative_qualitative' | 'quantitative_quantitative';
@@ -29,12 +27,8 @@ export const StatisticsPage: React.FC = () => {
   const [stats, setStats] = useState<StatisticsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [relationsSubType, setRelationsSubType] = useState<RelationsSubType>('qualitative_qualitative');
-
-  // États pour les sélections d'analyse
   const [analysisType, setAnalysisType] = useState<AnalysisType>('descriptive');
   const [descriptiveSubType, setDescriptiveSubType] = useState<DescriptiveSubType>('quantitative');
-
-  // États pour le filtrage des variables
   const [targetVariable, setTargetVariable] = useState<string>('');
   const [variableNames, setVariableNames] = useState<{
     quantitative: { [key: string]: { fullName: string, parts: string[] }[] },
@@ -53,7 +47,6 @@ export const StatisticsPage: React.FC = () => {
   const [isTargetFocused, setIsTargetFocused] = useState(false);
   const [isOtherFocused, setIsOtherFocused] = useState(false);
 
-  //const { isAnalysisRunning } = useAnalysis();
 
   const normalizeName = (nameParts: string | string[]): string => {
     if (typeof nameParts === 'string') {
@@ -95,7 +88,7 @@ const targetVarsList = [
   ['PRODUIT FINI TSP', 'Granulométrie', '˃2-˃4mm']
 ];
 
-  // Normaliser les noms de variables cibles
+
   const normalizedTargetVars = targetVarsList.map(v => normalizeName(v));
 
   const groupByFirstLevel = (variables: { fullName: string, parts: string[] }[]) => {
@@ -124,8 +117,8 @@ const targetVarsList = [
 
   const handleSelectVariable = (variableFullName: string) => {
     setTargetVariable(variableFullName);
-    setSearchTerm(''); // Réinitialise le terme de recherche
-    setIsFocused(false); // Ferme le menu
+    setSearchTerm(''); 
+    setIsFocused(false); 
   };
 
   const handleInputFocus = () => {
@@ -134,7 +127,6 @@ const targetVarsList = [
 
   const handleInputBlur = (e: React.FocusEvent) => {
     setTimeout(() => {
-      // Add this check
       if (e.currentTarget && !e.currentTarget.contains(document.activeElement)) {
         setIsFocused(false);
       }
@@ -147,7 +139,6 @@ const targetVarsList = [
 
   const handleTargetInputBlur = (e: React.FocusEvent) => {
     setTimeout(() => {
-      // Add this check
       if (e.currentTarget && !e.currentTarget.contains(document.activeElement)) {
         setIsTargetFocused(false);
       }
@@ -168,7 +159,6 @@ const targetVarsList = [
 
   const handleOtherInputBlur = (e: React.FocusEvent) => {
     setTimeout(() => {
-      // Add this check
       if (e.currentTarget && !e.currentTarget.contains(document.activeElement)) {
         setIsOtherFocused(false);
       }
@@ -285,12 +275,10 @@ const handleFetchStatistics = async () => {
   setLoading(true);
   
   setStats(null);
-
-  // --- AJOUT 1 : Log des variables avant l'appel ---
   if (analysisType === 'relations' && relationsSubType === 'quantitative_quantitative' && targetRelationVariable && otherRelationVariable) {
     console.log("🕵️‍♂️ Lancement de la requête de relation avec :");
     console.log("  > Ligne :", line);
-    console.log("  > Var 1 :", `"${targetRelationVariable}"`); // Ajout de guillemets pour voir les espaces
+    console.log("  > Var 1 :", `"${targetRelationVariable}"`); 
     console.log("  > Var 2 :", `"${otherRelationVariable}"`);
   }
 
@@ -298,13 +286,9 @@ const handleFetchStatistics = async () => {
     let data;
     
     if (analysisType === 'relations' && relationsSubType === 'quantitative_quantitative' && targetRelationVariable && otherRelationVariable) {
-      // Récupérer une relation spécifique
       data = await api.getRelationStatistics(line, targetRelationVariable, otherRelationVariable);
     } else {
-      // Récupérer toutes les statistiques de la ligne
       data = await api.getStatistics(line);
-      
-      // Filtrer si on veut une variable spécifique en analyse descriptive
       if (analysisType === 'descriptive' && descriptiveSubType === 'quantitative' && targetVariable) {
         data = {
           ...data,
@@ -316,7 +300,6 @@ const handleFetchStatistics = async () => {
     }
     setStats(data);
   } catch (err: any) {
-    // --- AJOUT 2 : Log détaillé de l'erreur ---
     console.error("❌ Erreur API détaillée :", err.response ? err.response.data : err.message);
     
   } finally {
@@ -333,7 +316,6 @@ const handleFetchStatistics = async () => {
   };
 
 const filteredQuantitativeVars = useMemo(() => {
-  // On vérifie maintenant aussi la présence de stats.Variables
   if (!stats || !stats.Variables) return []; 
   const allVars = Object.entries(stats.Variables).filter(([_, data]) =>
     isQuantitative(data)
@@ -792,10 +774,7 @@ const availableCorrelationVars = useMemo(() => {
 
     Object.entries(variableNames.quantitative).forEach(([groupName, groupVariables]) => {
       const filteredGroup = groupVariables.filter(v => {
-        // Normalize the variable name coming from the backend before comparison
         const normalizedName = normalizeName(v.fullName.split('.'));
-        
-        // Now, compare the normalized name against the already normalized target variables
         return normalizedName !== targetRelationVariable && 
                !targetVarFullNames.has(normalizedName);
       });

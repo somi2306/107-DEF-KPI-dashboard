@@ -17,7 +17,7 @@ RUN npm run build
 
 
 # --- STAGE 2: Construire l'Image Finale du Backend ---
-# Utilise la même image de base que votre backend original
+# Utilise la même image de base que le backend original
 FROM node:20
 
 # Installe Python et les dépendances système
@@ -41,12 +41,10 @@ RUN npm install --production
 # Copie le code source du backend
 COPY backend/src ./src
 
-# --- LA LIGNE ADAPTÉE ---
-# Copie les fichiers statiques du frontend (construits au Stage 1)
-# directement à la racine du conteneur pour correspondre au chemin '/frontend/dist'
+# Copie les fichiers statiques du frontend construits à partir de l'étape précédente
 COPY --from=frontend-builder /app/frontend/dist /frontend/dist
 
-# Expose le port sur lequel votre serveur écoute
+# Expose le port sur lequel le serveur écoute
 EXPOSE 5000
 
 # Commande pour démarrer le serveur

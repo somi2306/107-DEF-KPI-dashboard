@@ -8,7 +8,6 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 
-// Composant pour le modèle 3D
 function Model3D() {
     const group = useRef<THREE.Group>(null);
     const { scene } = useGLTF('/apatite.glb');
@@ -65,12 +64,11 @@ const LandingPage: React.FC = () => {
     from-gray-900 via-green-900 to-emerald-900 flex items-center justify-center relative overflow-hidden'
         >
             <div className="relative isolate px-6 pt-14 lg:px-8">
-                {/* Shapes */}
+
                 <FloatingShape color='bg-green-500' size='w-64 h-64' top='-5%' left='10%' delay={0} />
             <FloatingShape color='bg-emerald-500' size='w-48 h-48' top='70%' left='80%' delay={5} />
             <FloatingShape color='bg-lime-500' size='w-32 h-32' top='40%' left='-10%' delay={2} />
-                
-                {/* Hero Section avec modèle 3D */}
+
                 <div className="mx-auto max-w-7xl py-32 sm:py-48 lg:py-56 flex flex-col lg:flex-row items-center justify-between gap-12">
                     <motion.div
                         className="z-10 lg:w-1/2"
@@ -120,7 +118,7 @@ const LandingPage: React.FC = () => {
                     </motion.div>
                 </div>
                 
-                {/* Features Section */}
+                
                 <div className="pb-32">
                     <div className="mx-auto max-w-7xl px-6 lg:px-8">
                         <div className="mx-auto max-w-2xl lg:text-center">

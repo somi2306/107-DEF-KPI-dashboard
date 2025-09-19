@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const SignInWithEmail = () => {
-  const { signIn, isLoaded, setActive } = useSignIn(); // Destructure setActive
+  const { signIn, isLoaded, setActive } = useSignIn(); 
   const [emailAddress, setEmailAddress] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
@@ -15,16 +15,15 @@ const SignInWithEmail = () => {
 
   const handleEmailSignIn = async () => {
     try {
-      const result = await signIn.create({ // Capture the result of signIn.create
+      const result = await signIn.create({ 
         identifier: emailAddress,
         password,
       });
 
-      if (result.status === "complete") { // Check if sign-in is complete
-        await setActive({ session: result.createdSessionId }); // Activate the session
-        navigate("/auth-callback"); // Redirect after session is active
+      if (result.status === "complete") { 
+        await setActive({ session: result.createdSessionId }); 
+        navigate("/auth-callback"); 
       } else {
-        // Handle other statuses if necessary (e.g., requires 2FA)
         console.error("Connexion incomplète:", result);
         alert("La connexion nécessite des étapes supplémentaires. Veuillez vérifier la console.");
       }

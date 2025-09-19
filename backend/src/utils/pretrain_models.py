@@ -21,7 +21,7 @@ warnings.filterwarnings("ignore")
 sys.stdout.reconfigure(encoding='utf-8')
 sys.stderr.reconfigure(encoding='utf-8')
 
-# Import de TOUTES vos fonctions d'entraînement
+# Import de TOUTES fonctions d'entraînement
 from regression_models.pretrain_linear import train_linear_regression
 from regression_models.pretrain_random_forest import train_random_forest
 from regression_models.pretrain_gradient_boosting import train_gradient_boosting
@@ -158,7 +158,7 @@ def load_data_from_mongodb(line, imputation_methods=['mean', 'median', 'mode', '
         db = client[db_name]
         collection = db['kpidatas']
         
-        line_letter = line.replace('107', '')  # Transforme "107D" en "D"
+        line_letter = line.replace('107', '')
         dfs = []
         
         for method in imputation_methods:
@@ -390,8 +390,7 @@ def train_model_from_df(df, line, model_type, target_col, mongo_client):
         except Exception as pred_error:
             print(f"Impossible de sauvegarder les prédictions: {pred_error}")
 
-        # Préparer le document pour MongoDB
-# Dans pretrain_models.py, vérifiez que cette partie existe dans train_model_from_df()
+
         model_document = {
     'name': model_name,
     'line': line,
@@ -402,17 +401,14 @@ def train_model_from_df(df, line, model_type, target_col, mongo_client):
     'metrics': serializable_metrics,
     'learning_curve': learning_curve_data,
     'predictions': prediction_data,
-    # IMPORTANT: Toujours sauvegarder X_train et y_train pour tous les modèles
+
     'X_train': X_train.values.tolist(),
     'y_train': y_train.values.tolist(),
     }
-                # ==================================================================
-        # AJOUTEZ CE BLOC DE VÉRIFICATION
-        # ==================================================================
+
         print("\n--- VÉRIFICATION AVANT SAUVEGARDE ---")
         print(f"Modèle: {model_name}")
         if 'X_train' in model_document and model_document['X_train']:
-            # Utiliser numpy pour obtenir la forme (dimensions) de la liste de listes
             shape = np.array(model_document['X_train']).shape
             print(f"Vérification de X_train: OK. Forme: {shape}")
         else:
@@ -424,30 +420,8 @@ def train_model_from_df(df, line, model_type, target_col, mongo_client):
         else:
             print("ERREUR: La clé 'y_train' est MANQUANTE ou VIDE dans le document !")
         print("-------------------------------------\n")
-        # ==================================================================
-        # FIN DU BLOC DE VÉRIFICATION
-        # ==================================================================
 
-        # Sauvegarder dans la base de données
         save_model_to_db(mongo_client, model_document)
-        # Visualisation des arbres (pour les modèles d'arbres)
-
-        # on commente cette partie car elle n'est plus nécessaire
-        # if model_type in ['GradientBoostingRegressor', 'RandomForestRegressor']:
-        #     try:
-        #         viz_output_dir = os.path.join(model_dir, f"{model_name}_trees_visualizations")
-        #         visualize_script_path = os.path.join(os.path.dirname(__file__), 'visualize_all_trees.py')
-        #         subprocess.run([
-        #             sys.executable,
-        #             visualize_script_path,
-        #             os.path.join(model_dir, f"{model_name}.joblib"),
-        #             ",".join(features),
-        #             viz_output_dir
-        #         ], check=True, capture_output=True, text=True)
-        #         print("Visualisations des arbres sauvegardées")
-        #     except subprocess.CalledProcessError as e:
-        #         print(f"Erreur lors de la visualisation des arbres: {e.stderr}")
-
         return metrics
     except Exception as e:
         traceback.print_exc()

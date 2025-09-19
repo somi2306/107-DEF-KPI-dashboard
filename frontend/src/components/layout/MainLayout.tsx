@@ -21,7 +21,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ activePage, setActivePag
 
   // Mettre à jour activePage lorsque l'URL change
   useEffect(() => {
-    setActivePage(location.pathname.substring(1)); // Enlever le slash initial
+    setActivePage(location.pathname.substring(1)); 
   }, [location, setActivePage]);
 
   return (

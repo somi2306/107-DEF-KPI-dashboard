@@ -17,7 +17,6 @@ export const InteractiveHistogram: React.FC<InteractiveHistogramProps> = ({
   title, 
   height = 400 
 }) => {
-  // Formatter correct pour Tooltip
   const formatTooltip = (value: number, name: string) => {
     return [`${value}`, name];
   };

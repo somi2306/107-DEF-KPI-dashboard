@@ -10,25 +10,24 @@ import { isClerkAPIResponseError } from "@clerk/shared";
 import { Checkbox } from "@/components/ui/checkbox";
 import { apiClient } from "@/lib/axios";
 
-// Define a type for the session data you expect from your backend
+
 interface BackendSession {
   id: string;
   userId: string;
-  status: string; // e.g., 'active', 'removed'
-  last_active_at: number; // Corrected: Based on the Postman result, it's a number (timestamp)
-  latest_activity?: { // Properties directly from Clerk's Session.latest_activity
+  status: string; 
+  last_active_at: number; 
+  latest_activity?: { 
     browser_name?: string;
-    browser_version?: string; // Add this line
-    device_type?: string; // e.g., 'Windows'
+    browser_version?: string; 
+    device_type?: string; 
     is_mobile?: boolean;
     ip_address?: string;
     city?: string;
     country?: string;
   };
-  // Other properties like expire_at, created_at, updated_at are also present
 }
 
-// Helper function to format last active time
+
 const formatLastActive = (timestamp: number) => {
   const date = new Date(timestamp);
   return date.toLocaleString('en-US', {
@@ -58,7 +57,7 @@ const SecuritySettings = () => {
   const [isSessionsLoading, setIsSessionsLoading] = useState(true);
   const [sessionsFetchError, setSessionsFetchError] = useState<string | null>(null);
 
-  // Function to fetch active sessions from our backend
+
   const fetchActiveDevices = useCallback(async () => {
     if (!user?.id) {
       setIsSessionsLoading(false);
@@ -68,7 +67,6 @@ const SecuritySettings = () => {
     setSessionsFetchError(null);
     try {
   const response = await apiClient.get<BackendSession[]>("/users/sessions");
-      // Filter out 'removed' sessions if you only want active ones
       setActiveDevices(response.data.filter(session => session.status === 'active')); 
     } catch (error: any) {
       console.error("Error fetching sessions from backend:", error);
@@ -79,7 +77,7 @@ const SecuritySettings = () => {
     }
   }, [user?.id]);
 
-  // Effect to fetch sessions on component mount or user change
+
   useEffect(() => {
     if (isUserLoaded && user?.id) {
       fetchActiveDevices();
@@ -124,7 +122,7 @@ const SecuritySettings = () => {
       setNewPassword("");
       setConfirmPassword("");
       setSignOutOthersChecked(false);
-      fetchActiveDevices(); // Re-fetch sessions after password change
+      fetchActiveDevices(); 
     } catch (error: any) {
       console.error("Error changing password:", error);
       const errorMessage = isClerkAPIResponseError(error)
@@ -152,7 +150,7 @@ const SecuritySettings = () => {
     try {
   await apiClient.delete(`/users/sessions/${sessionId}`);
       toast.success('Device signed out.');
-      fetchActiveDevices(); // Re-fetch sessions after revoking
+      fetchActiveDevices(); 
     } catch (error) {
       console.error("Error revoking session:", error);
       toast.error('Failed to sign out device.');
@@ -167,7 +165,7 @@ const SecuritySettings = () => {
 
     let signOutCount = 0;
     for (const session of activeDevices) {
-      if (session.id !== currentSession.id && session.status === 'active') { // Only revoke active sessions
+      if (session.id !== currentSession.id && session.status === 'active') { 
         try {
           await apiClient.delete(`/users/sessions/${session.id}`);
           signOutCount++;
@@ -179,7 +177,7 @@ const SecuritySettings = () => {
     }
     if (signOutCount > 0) {
       toast.success(`Signed out of ${signOutCount} other device(s).`);
-      fetchActiveDevices(); // Re-fetch sessions after revoking all
+      fetchActiveDevices(); 
     } else {
       toast("No other devices to sign out from.");
     }
@@ -215,7 +213,7 @@ const SecuritySettings = () => {
 
   return (
     <div className="space-y-6">
-      {/* Password Section */}
+      
       <div className="space-y-4">
         <h3 className="text-xl font-semibold text-slate-800">Mettre à jour le mot de passe</h3>
         <div>
@@ -296,7 +294,7 @@ const SecuritySettings = () => {
         </div>
       </div>
 
-      {/* Active Devices */}
+      
       <div className="space-y-4 pt-6 border-t border-slate-200">
         <h3 className="text-xl font-semibold text-slate-800">Appareils actifs</h3>
         <p className="text-slate-600">Gérez les appareils actuellement connectés à votre compte.</p>
@@ -356,7 +354,7 @@ const SecuritySettings = () => {
           </Button>
         </div>
 
-        {/* Delete account button */}
+        
         <div className="pt-6 border-t border-slate-200 mt-6">
           <Button
             variant="destructive"

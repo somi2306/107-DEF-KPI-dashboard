@@ -1,4 +1,3 @@
-
 import pandas as pd
 import numpy as np
 import sys
@@ -128,14 +127,14 @@ def traiter_fusion(ligne, file1_content, file2_content):
     """
     debug_print(f"\n{'='*20} Début du traitement pour la Ligne {ligne} {'='*20}")
 
-    # --- A. Chargement des fichiers ---
+    # ---  Chargement des fichiers ---
     debug_print(f"Chargement des fichiers pour la ligne {ligne}...")
     df = pd.read_excel(io.BytesIO(file1_content), header=[0, 1, 2])
     df1 = pd.read_excel(io.BytesIO(file2_content), header=[0, 1])
     df = df.iloc[:, 1:]
     df1 = df1.iloc[:, 1:]
 
-    # --- B. Modèle de base pour le mappage des en-têtes ---
+    # ---  Modèle de base pour le mappage des en-têtes ---
     header_mapping_template = {
         'Production TSP balance T/H': 'J_107DEF_107DWI407_B',
         'Débit ACP 1 M3/H': 'J_107DEF_107DFIC905_B',
@@ -177,7 +176,7 @@ def traiter_fusion(ligne, file1_content, file2_content):
         'Unnamed: 91_level_2': ' '
     }
 
-    # --- C. Créer le dictionnaire de mappage dynamique ---
+    # ---  Créer le dictionnaire de mappage dynamique ---
     def remplacer_ligne(valeur, ligne):
         return re.sub(r'(?<=J_107DEF_)107D', f'107{ligne}', valeur)
 
@@ -186,7 +185,7 @@ def traiter_fusion(ligne, file1_content, file2_content):
     for key, value in header_mapping_template.items()
     }
 
-    # --- D. Logique de fusion ---
+    # ---  Logique de fusion ---
     colonnes_identiques_df1 = [
         (('Unnamed: 0_level_0', 'Unnamed: 0_level_1', 'Unnamed: 0_level_2'), ('Unnamed: 0_level_0', 'Unnamed: 0_level_1')),
         (('Unnamed: 0_level_0', 'Unnamed: 0_level_1', 'Date c'), ('Unnamed: 1_level_0', 'Date c')),
@@ -380,7 +379,6 @@ def apply_formulas(df, ligne):
         condition = get_col('SE suivi CIV %') >= 41.5
         df[('Valeurs', '"CIV" si SE suivi CIV> =41,5 et "SP" sinon', 'Qualité')] = np.where(condition, "CIV", "SP")
         debug_print("Formula 'Qualité' applied.")
-    # AJOUTER CETTE LIGNE POUR DEBUG
         col_name = ('Valeurs', '"CIV" si SE suivi CIV>=41,5 et "SP" sinon', 'Qualité')
         values = df[col_name].unique()
         debug_print(f"Qualité values: {values}")
@@ -543,17 +541,17 @@ def main():
         file1_content = base64.b64decode(payload['file1_b64'])
         file2_content = base64.b64decode(payload['file2_b64'])
 
-        # 1. Fusion des fichiers
+        #  Fusion des fichiers
         df_fusion = traiter_fusion(ligne, file1_content, file2_content)
 
-        # 2. Nettoyage des données
+        #  Nettoyage des données
         df_nettoye = nettoyage_donnees(df_fusion)
 
-        # 3. Remplissage des données avec différentes méthodes
+        #  Remplissage des données avec différentes méthodes
         dict_dfs_remplis = remplissage_donnees(df_nettoye, ligne)
         
 
-        # 4. Préparation et envoi des données pour MongoDB (en streaming)
+        #  Préparation et envoi des données pour MongoDB (en streaming)
         for method, df_method in dict_dfs_remplis.items():
             df_method = df_method.drop(df_method.columns[0], axis=1)
             #df_method = df_method.drop(df_method.columns[-1], axis=1)
@@ -616,4 +614,4 @@ def main():
         sys.exit(1)
 
 if __name__ == "__main__":
-    main() # Simplification du bloc final
+    main()

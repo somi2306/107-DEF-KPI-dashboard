@@ -7,10 +7,9 @@ interface LearningCurveChartProps {
 }
 
 export const LearningCurveChart: React.FC<LearningCurveChartProps> = ({ data }) => {
-  // On transforme les données pour qu'elles soient utilisables par Recharts
   const chartData = useMemo(() => {
     return data.train_sizes_abs.map((size, index) => ({
-      name: size, // Nom pour l'axe X
+      name: size, 
       'Erreur (Entraînement)': data.train_scores_mean[index],
       'Erreur (Validation)': data.validation_scores_mean[index],
     }));

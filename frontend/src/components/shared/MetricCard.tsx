@@ -3,9 +3,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui
 
 interface MetricCardProps {
   title: string;
-  // La valeur peut être un nombre ou du texte (ex: 'N/A')
   value: number | string;
-  description?: string; // La description est optionnelle
+  description?: string; 
 }
 
 

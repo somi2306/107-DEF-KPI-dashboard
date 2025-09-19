@@ -32,7 +32,7 @@ const KpiDataSchema = new mongoose.Schema({
   
 
 }, {
-  strict: false, // TRÈS IMPORTANT: permet de stocker toutes les colonnes de vos données sans les déclarer une par une.
+  strict: false, // permet de stocker toutes les colonnes de données sans les déclarer une par une.
   timestamps: true 
 });
 
