@@ -1,4 +1,4 @@
-/*import { StrictMode } from "react";*/
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.tsx";
@@ -13,7 +13,7 @@ if (!PUBLISHABLE_KEY) {
 }
 
 createRoot(document.getElementById("root")!).render(
-	/*<StrictMode>*/
+	<StrictMode>
 		<ClerkProvider 
   publishableKey={PUBLISHABLE_KEY} 
   afterSignOutUrl='/'
@@ -31,5 +31,5 @@ createRoot(document.getElementById("root")!).render(
 				</BrowserRouter>
 			</AuthProvider>
 		</ClerkProvider>
-	/*</StrictMode>*/
+	</StrictMode>
 );

@@ -5,6 +5,7 @@ import { connectDB } from './lib/db.js';
 import http from 'http'; 
 import { Server } from 'socket.io'; 
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import predictionRoutes from './routes/predictionRoutes.js';
 import statisticsRoutes from './routes/statisticsRoutes.js';
@@ -65,6 +66,11 @@ io.on('connection', (socket) => {
   });
 });
 
+app.get('/.well-known/appspecific/com.chrome.devtools.json', (req, res) => {
+  res.json({ message: "Not needed for this app" });
+});
+
+
 // --- MIDDLEWARES ---
 app.use(cors({
   origin: frontendURL,
@@ -93,13 +99,25 @@ app.get('/api/analysis/status', (req, res) => {
 
 
 // --- Servir les fichiers statiques du frontend en production ---
-if (process.env.NODE_ENV === "production") {
+if (process.env.NODE_ENV === "production" || true) {  
   const buildPath = path.join(__dirname, '..', '..', 'frontend', 'dist');
-  // Sert les fichiers statiques (CSS, JS, images)
+
+  console.log('🔄 Serving static files from:', buildPath);
+  console.log('📁 Directory exists:', fs.existsSync(buildPath));
+
+  if (fs.existsSync(buildPath)) {
+    console.log('📋 Files in directory:', fs.readdirSync(buildPath));
+  } else {
+    console.log('❌ Build directory does not exist!');
+  }
+
+  // Sert les fichiers statiques (CSS, JS, images)    
   app.use(express.static(buildPath));
-  // 2. Middleware "catch-all" : Pour toute autre requête qui n'est pas une API
+
+  // Middleware "catch-all" : Pour toute autre requête qui n'est pas une API
   app.use((req, res) => {
-    res.sendFile(path.join(buildPath, 'index.html'));
+    console.log('📨 Catch-all route triggered for:', req.url);
+    res.sendFile(path.join(buildPath, 'index.html')); 
   });
 }
 
@@ -136,4 +154,3 @@ export const setTrainingStatus = (newStatus) => {
   trainingStatus = newStatus;
   io.emit('training-status-update', trainingStatus);
 };
-
