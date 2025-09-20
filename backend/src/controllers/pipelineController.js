@@ -1,5 +1,6 @@
-import { spawn } from 'child_process';
-import fs from 'fs'; 
+import { Worker } from 'worker_threads';
+import path from 'path';
+import fs from 'fs';
 import KpiData from '../models/KpiData.js';
 import { pipelineStatus, getIo, setPipelineStatus } from '../index.js';
 import { createNotification } from './notificationController.js';
@@ -109,7 +110,6 @@ export const runPipelineInMemory = (req, res) => {
     return res.status(409).json({ error: "Un processus de fusion est déjà en cours." });
   }
 
-
   const filesByLine = {};
   req.files.forEach(file => {
     const key = file.fieldname.split('_')[1];
@@ -122,7 +122,6 @@ export const runPipelineInMemory = (req, res) => {
       originalname: file.originalname
     };
   });
-
 
   const linesProcessed = Object.keys(filesByLine).join(', ');
   const startMessage = `Le processus de fusion des fichiers de la ligne ${linesProcessed} a commencé.`;
@@ -146,91 +145,36 @@ export const runPipelineInMemory = (req, res) => {
         return resolve({ line, status: 'skipped', message: 'Paire de fichiers incomplète.' });
       }
 
-
-      const path1 = 'src/utils/full_pipeline_memory.py';
-      const path2 = 'utils/full_pipeline_memory.py';
-      let scriptPath;
-
-
-      if (fs.existsSync(path1)) {
-        scriptPath = path1;
-      } else if (fs.existsSync(path2)) {
-        scriptPath = path2;
-      } else {
-
-        console.error(`ERREUR CRITIQUE: Le script Python est introuvable. Chemins vérifiés: ${path1}, ${path2}`);
-        return reject({ 
-          line, 
-          status: 'error', 
-          message: 'Fichier de script Python introuvable sur le serveur.' 
-        });
-      }
-      
-      console.log(`Lancement du pipeline en mémoire pour la ligne ${line} avec le script : ${scriptPath}`);
-      
-
-      const pythonProcess = spawn('python', ['-X', 'utf8', scriptPath]);
-
-
-
-
-      pythonProcess.stdin.on('error', (err) => { console.error(`Erreur d'écriture stdin pour la ligne ${line}:`, err.message); });
-      pythonProcess.on('error', (err) => {
-        console.error(`Impossible de lancer le processus Python pour la ligne ${line}:`, err.message);
-        reject({ line, status: 'error', message: 'Impossible de lancer le script Python.' });
+      const worker = new Worker('./src/workers/pipelineWorker.js', {
+        workerData: {
+          line: line,
+          file1_b64: lineFiles.file1.buffer,
+          file2_b64: lineFiles.file2.buffer,
+          originalname1: lineFiles.file1.originalname,
+          originalname2: lineFiles.file2.originalname
+        }
       });
 
-      const inputPayload = {
-        line: line,
-        file1_b64: lineFiles.file1.buffer,
-        file2_b64: lineFiles.file2.buffer,
-        originalname1: lineFiles.file1.originalname,
-        originalname2: lineFiles.file2.originalname
-      };
+      worker.on('message', (message) => {
+        if (message.status === 'success') {
+          processInBatches(message.documents, 500)
+            .then(result => {
+              console.log(`SUCCÈS Ligne ${line}: ${result.inserted} documents insérés, ${result.duplicates} doublons ignorés.`);
+              resolve({ line, status: 'success', inserted: result.inserted, duplicates: result.duplicates });
+            })
+            .catch(dbError => reject({ line, status: 'error', message: 'Erreur lors de l\'insertion en base de données.', details: dbError.message }));
+        } else if (message.status === 'error') {
+            reject({ line, status: 'error', message: message.message, details: message.details });
+        }
+      });
 
-      pythonProcess.stdin.write(JSON.stringify(inputPayload));
-      pythonProcess.stdin.end();
+      worker.on('error', (error) => {
+        reject({ line, status: 'error', message: 'Erreur inattendue du worker.', details: error.message });
+      });
 
-      let scriptOutput = '';
-      let scriptError = '';
-
-      pythonProcess.stdout.on('data', (data) => { scriptOutput += data.toString(); });
-      pythonProcess.stderr.on('data', (data) => { scriptError += data.toString(); });
-
-      pythonProcess.on('close', (code) => {
-        const hasRealError = scriptError && !scriptError.includes('RuntimeWarning') && !scriptError.includes('Mean of empty slice') && !scriptError.includes('FutureWarning');
-        
-        if (code === 0 && !hasRealError) {
-          try {
-            const lines = scriptOutput.trim().split('\n');
-            const documents = [];
-            
-            for (const docLine of lines) {
-              if (docLine.trim()) {
-                try {
-                  const doc = JSON.parse(docLine);
-                  documents.push(doc);
-                } catch (parseError) {
-                  console.error(`Erreur de parsing sur une ligne JSON: ${parseError.message}`);
-                }
-              }
-            }
-            
-            if (documents.length > 0) {
-              processInBatches(documents, 500)
-                .then(result => {
-                  console.log(`SUCCÈS Ligne ${line}: ${result.inserted} documents insérés, ${result.duplicates} doublons ignorés.`);
-                  resolve({ line, status: 'success', inserted: result.inserted, duplicates: result.duplicates });
-                })
-                .catch(dbError => reject({ line, status: 'error', message: 'Erreur lors de l\'insertion en base de données.', details: dbError.message }));
-            } else {
-              resolve({ line, status: 'success', inserted: 0, duplicates: 0, message: 'Aucun nouveau document à insérer.' });
-            }
-          } catch (e) {
-            reject({ line, status: 'error', message: 'Erreur de traitement de la sortie Python.', details: e.message });
-          }
-        } else {
-          reject({ line, status: 'error', message: 'Le script Python a échoué.', details: scriptError || scriptOutput });
+      worker.on('exit', (code) => {
+        if (code !== 0) {
+          reject({ line, status: 'error', message: `Le worker s'est arrêté avec le code ${code}` });
         }
       });
     });
