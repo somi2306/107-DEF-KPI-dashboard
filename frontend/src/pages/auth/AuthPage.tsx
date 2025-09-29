@@ -1,11 +1,12 @@
-
 import { useSignIn, useSignUp, useClerk } from "@clerk/clerk-react";
 import { Button } from "../../components/ui/button";
 import { useState } from "react";
 import { Input } from "../../components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import PasswordStrengthMeter from "../../components/PasswordStrengthMeter";
-import AuthImagePattern from "../../components/AuthImagePattern"; 
+import AuthImagePattern from "../../components/AuthImagePattern";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
+import ForgotPassword from "../../components/ForgotPassword"; 
 
 const AuthPage = () => {
   const { signIn, isLoaded: isSignInLoaded } = useSignIn();
@@ -20,6 +21,8 @@ const AuthPage = () => {
   const [pendingVerification, setPendingVerification] = useState(false);
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false); // Nouvel état
 
   if (!isSignInLoaded || !isSignUpLoaded) return null;
 
@@ -79,6 +82,10 @@ const AuthPage = () => {
     }
   };
 
+  if (showForgotPassword) {
+    return <ForgotPassword onBack={() => setShowForgotPassword(false)} />;
+  }
+
   return (
     <div className="max-w-4xl w-full mx-auto bg-zinc-900 bg-opacity-50 backdrop-filter backdrop-blur-xl rounded-2xl shadow-xl overflow-hidden flex flex-col lg:flex-row relative z-10">
       <div id="clerk-captcha"></div>
@@ -128,13 +135,22 @@ const AuthPage = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   className="bg-zinc-800 border-zinc-700 text-white"
                 />
-                <Input
-                  type="password"
-                  placeholder="Mot de passe"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="bg-zinc-800 border-zinc-700 text-white"
-                />
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Mot de passe"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="bg-zinc-800 border-zinc-700 text-white pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-400 hover:text-white"
+                  >
+                    {showPassword ? <FaEyeSlash /> : <FaEye />}
+                  </button>
+                </div>
                 {error && <p className="text-red-500 text-sm text-center">{error}</p>}
                 <Button
                   onClick={handleEmailSignIn}
@@ -142,60 +158,69 @@ const AuthPage = () => {
                 >
                   Se connecter avec Email
                 </Button>
+                <div className="text-center">
+                  <Button
+                    variant="link"
+                    onClick={() => setShowForgotPassword(true)}
+                    className="text-zinc-400 hover:text-white"
+                  >
+                    Mot de passe oublié ?
+                  </Button>
+                </div>
               </div>
             </TabsContent>
 
-<TabsContent value="signup">
-  <div className="space-y-4 mt-4">
-    <div className="flex gap-4">
-      <Input
-        type="text"
-        placeholder="Prénom"
-        value={firstName}
-        onChange={(e) => setFirstName(e.target.value)}
-        className="bg-zinc-800 border-zinc-700 text-white flex-1"
-      />
-      <Input
-        type="text"
-        placeholder="Nom"
-        value={lastName}
-        onChange={(e) => setLastName(e.target.value)}
-        className="bg-zinc-800 border-zinc-700 text-white flex-1"
-      />
-    </div>
-
-
-    <Input
-      type="email"
-      placeholder="Email"
-      value={email}
-      onChange={(e) => setEmail(e.target.value)}
-      className="bg-zinc-800 border-zinc-700 text-white"
-    />
-
-
-    <Input
-      type="password"
-      placeholder="Mot de passe"
-      value={password}
-      onChange={(e) => setPassword(e.target.value)}
-      className="bg-zinc-800 border-zinc-700 text-white"
-    />
-
-
-    {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-
-    <PasswordStrengthMeter password={password} />
-
-    <Button
-      onClick={handleSignUp}
-      className="w-full bg-emerald-500 hover:bg-emerald-600 text-black"
-    >
-      S'inscrire
-    </Button>
-  </div>
-</TabsContent>
-
+            <TabsContent value="signup">
+              <div className="space-y-4 mt-4">
+                <div className="flex gap-4">
+                  <Input
+                    type="text"
+                    placeholder="Prénom"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="bg-zinc-800 border-zinc-700 text-white flex-1"
+                  />
+                  <Input
+                    type="text"
+                    placeholder="Nom"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="bg-zinc-800 border-zinc-700 text-white flex-1"
+                  />
+                </div>
+                <Input
+                  type="email"
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="bg-zinc-800 border-zinc-700 text-white"
+                />
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Mot de passe"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="bg-zinc-800 border-zinc-700 text-white pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-400 hover:text-white"
+                  >
+                    {showPassword ? <FaEyeSlash /> : <FaEye />}
+                  </button>
+                </div>
+                {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+                <PasswordStrengthMeter password={password} />
+                <Button
+                  onClick={handleSignUp}
+                  className="w-full bg-emerald-500 hover:bg-emerald-600 text-black"
+                >
+                  S'inscrire
+                </Button>
+              </div>
+            </TabsContent>
           </Tabs>
         )}
 
@@ -209,7 +234,6 @@ const AuthPage = () => {
                 <span className="bg-zinc-900 px-2 text-zinc-400">Ou continuer avec</span>
               </div>
             </div>
-
             <div className="flex flex-col gap-3">
               <Button
                 onClick={() => signInWithOAuth("oauth_google")}
@@ -223,12 +247,10 @@ const AuthPage = () => {
           </>
         )}
       </div>
-
-
-      <div className="flex-1 hidden lg:block"> 
+      <div className="flex-1 hidden lg:block">
         <AuthImagePattern
-          title="Welcome to customized fertilizers direction" 
-          subtitle="" 
+          title="Welcome to customized fertilizers direction"
+          subtitle=""
         />
       </div>
     </div>
