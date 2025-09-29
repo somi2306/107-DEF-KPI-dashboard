@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useUser, useClerk } from "@clerk/clerk-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -29,7 +28,6 @@ const ProfileDetails = () => {
   const [currentVerificationEmailId, setCurrentVerificationEmailId] = useState<string | null>(null);
   const [setPrimaryChecked, setSetPrimaryChecked] = useState(false);
   const [showEmailVerificationPrompt, setShowEmailVerificationPrompt] = useState(false);
-
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -73,10 +71,10 @@ const ProfileDetails = () => {
         setImageUrl(user.imageUrl);
         toast.success("Image de profil mise à jour ! 🎉");
 
-  await apiClient.put("/users/profile", {
-            firstName: user.firstName,
-            lastName: user.lastName,
-            imageUrl: user.imageUrl,
+        await apiClient.put("/users/profile", {
+          firstName: user.firstName,
+          lastName: user.lastName,
+          imageUrl: user.imageUrl,
         });
 
       } else {
@@ -103,24 +101,23 @@ const ProfileDetails = () => {
       await user.setProfileImage({ file: null });
       setImageUrl(user.imageUrl);
 
-  await apiClient.put("/users/profile", {
-          firstName: user.firstName,
-          lastName: user.lastName,
-          imageUrl: user.imageUrl,
+      await apiClient.put("/users/profile", {
+        firstName: user.firstName,
+        lastName: user.lastName,
+        imageUrl: user.imageUrl,
       });
 
       toast.success("Image de profil supprimée !");
     } catch (error: any) {
       console.error("Erreur lors de la suppression de l'image :", error);
       const errorMessage = isClerkAPIResponseError(error)
-          ? error.errors[0]?.longMessage || "Échec de la suppression de l'image."
-          : "Échec de la suppression de l'image.";
+        ? error.errors[0]?.longMessage || "Échec de la suppression de l'image."
+        : "Échec de la suppression de l'image.";
       toast.error(errorMessage);
     } finally {
-        setIsSaving(false);
+      setIsSaving(false);
     }
   };
-
 
   const handleUpdateProfile = async () => {
     setIsSaving(true);
@@ -130,7 +127,7 @@ const ProfileDetails = () => {
         lastName,
       });
 
-  await apiClient.put("/users/profile", {
+      await apiClient.put("/users/profile", {
         firstName,
         lastName,
         imageUrl: user.imageUrl,
@@ -156,23 +153,23 @@ const ProfileDetails = () => {
     setShowEmailVerificationPrompt(false); 
 
     try {
-        const newEmailObject = await user.createEmailAddress({ email: newEmail });
-        if (newEmailObject) {
-            await newEmailObject.prepareVerification({ strategy: "email_code" });
-            setCurrentVerificationEmailId(newEmailObject.id);
-            setIsVerifyingEmail(true); 
-            setNewEmail(""); 
-            toast.success("Code de vérification envoyé à votre nouvel email.");
-        }
+      const newEmailObject = await user.createEmailAddress({ email: newEmail });
+      if (newEmailObject) {
+        await newEmailObject.prepareVerification({ strategy: "email_code" });
+        setCurrentVerificationEmailId(newEmailObject.id);
+        setIsVerifyingEmail(true); 
+        setNewEmail(""); 
+        toast.success("Code de vérification envoyé à votre nouvel email.");
+      }
     } catch (error: any) {
-        console.error("Erreur lors de l'ajout de l'email :", error);
-        const errorMessage = isClerkAPIResponseError(error)
-            ? error.errors[0]?.longMessage || "Échec de l'ajout de l'adresse email."
-            : "Échec de l'ajout de l'adresse email.";
-        toast.error(errorMessage);
-        if (errorMessage.includes("additional verification")) {
-            setShowEmailVerificationPrompt(true);
-        }
+      console.error("Erreur lors de l'ajout de l'email :", error);
+      const errorMessage = isClerkAPIResponseError(error)
+        ? error.errors[0]?.longMessage || "Échec de l'ajout de l'adresse email."
+        : "Échec de l'ajout de l'adresse email.";
+      toast.error(errorMessage);
+      if (errorMessage.includes("additional verification")) {
+        setShowEmailVerificationPrompt(true);
+      }
     }
   };
 
@@ -180,81 +177,81 @@ const ProfileDetails = () => {
     if (!currentVerificationEmailId || !verificationCode) return;
 
     try {
-        const emailToVerify = user.emailAddresses.find(e => e.id === currentVerificationEmailId);
+      const emailToVerify = user.emailAddresses.find(e => e.id === currentVerificationEmailId);
 
-        if (emailToVerify) {
-            const verifiedEmail = await emailToVerify.attemptVerification({ code: verificationCode });
+      if (emailToVerify) {
+        const verifiedEmail = await emailToVerify.attemptVerification({ code: verificationCode });
 
-            if (verifiedEmail) {
-                if (setPrimaryChecked) {
-                    await user.update({ primaryEmailAddressId: verifiedEmail.id });
-                    toast.success("Email défini comme principal.");
-                }
+        if (verifiedEmail) {
+          if (setPrimaryChecked) {
+            await user.update({ primaryEmailAddressId: verifiedEmail.id });
+            toast.success("Email défini comme principal.");
+          }
 
-                await user.reload(); 
-                setEmailAddresses(user.emailAddresses.map(email => ({
-                    id: email.id,
-                    email: email.emailAddress,
-                    isPrimary: email.id === user.primaryEmailAddressId,
-                    verification: email.verification,
-                })));
+          await user.reload(); 
+          setEmailAddresses(user.emailAddresses.map(email => ({
+            id: email.id,
+            email: email.emailAddress,
+            isPrimary: email.id === user.primaryEmailAddressId,
+            verification: email.verification,
+          })));
 
-                setAddEmailDialogOpen(false); 
-                setNewEmail(""); 
-                setVerificationCode("");
-                setIsVerifyingEmail(false);
-                setCurrentVerificationEmailId(null); 
-                setSetPrimaryChecked(false); 
-                toast.success("Email vérifié et ajouté ! 🎉");
-            }
-        } else {
-            toast.error("L'email à vérifier n'a pas été trouvé.");
+          setAddEmailDialogOpen(false); 
+          setNewEmail(""); 
+          setVerificationCode("");
+          setIsVerifyingEmail(false);
+          setCurrentVerificationEmailId(null); 
+          setSetPrimaryChecked(false); 
+          toast.success("Email vérifié et ajouté ! 🎉");
         }
+      } else {
+        toast.error("L'email à vérifier n'a pas été trouvé.");
+      }
     } catch (error: any) {
-        console.error("Erreur lors de la vérification de l'email :", error);
-        const errorMessage = isClerkAPIResponseError(error)
-            ? error.errors[0]?.longMessage || "Échec de la vérification de l'email."
-            : "Échec de la vérification de l'email.";
-        toast.error(errorMessage);
+      console.error("Erreur lors de la vérification de l'email :", error);
+      const errorMessage = isClerkAPIResponseError(error)
+        ? error.errors[0]?.longMessage || "Échec de la vérification de l'email."
+        : "Échec de la vérification de l'email.";
+      toast.error(errorMessage);
     }
   };
 
   const handleSetPrimaryEmail = async (emailId: string) => {
     try {
-        await user.update({ primaryEmailAddressId: emailId });
-        await user.reload();
-        setEmailAddresses(user.emailAddresses.map(email => ({
-            id: email.id,
-            email: email.emailAddress,
-            isPrimary: email.id === user.primaryEmailAddressId,
-            verification: email.verification,
-        })));
-        toast.success("Email principal mis à jour.");
+      await user.update({ primaryEmailAddressId: emailId });
+      await user.reload();
+      setEmailAddresses(user.emailAddresses.map(email => ({
+        id: email.id,
+        email: email.emailAddress,
+        isPrimary: email.id === user.primaryEmailAddressId,
+        verification: email.verification,
+      })));
+      toast.success("Email principal mis à jour.");
     } catch (error: any) {
-        console.error("Erreur lors de la définition de l'email principal :", error);
-        const errorMessage = isClerkAPIResponseError(error)
-            ? error.errors[0]?.longMessage || "Échec de la définition de l'email principal."
-            : "Échec de la définition de l'email principal.";
-        toast.error(errorMessage);
+      console.error("Erreur lors de la définition de l'email principal :", error);
+      const errorMessage = isClerkAPIResponseError(error)
+        ? error.errors[0]?.longMessage || "Échec de la définition de l'email principal."
+        : "Échec de la définition de l'email principal.";
+      toast.error(errorMessage);
     }
   };
 
   const handleDeleteEmail = async (emailId: string) => {
     try {
-        const emailToDelete = user.emailAddresses.find(e => e.id === emailId);
-        if (emailToDelete) {
-            await emailToDelete.destroy();
-            await user.reload();
-            setEmailAddresses(user.emailAddresses.map(email => ({
-                id: email.id,
-                email: email.emailAddress,
-                isPrimary: email.id === user.primaryEmailAddressId,
-                verification: email.verification,
-            })));
-            toast.success("Adresse email supprimée.");
-        } else {
-            toast.error("L'email à supprimer n'a pas été trouvé.");
-        }
+      const emailToDelete = user.emailAddresses.find(e => e.id === emailId);
+      if (emailToDelete) {
+        await emailToDelete.destroy();
+        await user.reload();
+        setEmailAddresses(user.emailAddresses.map(email => ({
+          id: email.id,
+          email: email.emailAddress,
+          isPrimary: email.id === user.primaryEmailAddressId,
+          verification: email.verification,
+        })));
+        toast.success("Adresse email supprimée.");
+      } else {
+        toast.error("L'email à supprimer n'a pas été trouvé.");
+      }
     } catch (error: any) {
       console.error("Erreur lors de la suppression de l'email :", error);
       const errorMessage = isClerkAPIResponseError(error)
@@ -296,14 +293,14 @@ const ProfileDetails = () => {
               />
             </Label>
             {user.hasImage && (
-                <Button
-                    variant="link"
-                    className="text-red-600 hover:underline ml-4"
-                    onClick={handleRemoveImage}
-                    disabled={isSaving}
-                >
-                    Supprimer
-                </Button>
+              <Button
+                variant="link"
+                className="text-red-600 hover:underline ml-4"
+                onClick={handleRemoveImage}
+                disabled={isSaving}
+              >
+                Supprimer
+              </Button>
             )}
             <p className="text-sm text-slate-500 mt-1">Taille recommandée 1:1, jusqu'à 10MB</p>
           </div>
@@ -330,9 +327,9 @@ const ProfileDetails = () => {
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="outline" className="bg-white border-slate-300 text-slate-800 hover:bg-slate-100" onClick={() => {
-              setFirstName(user.firstName || "");
-              setLastName(user.lastName || "");
-              setImageUrl(user.imageUrl);
+            setFirstName(user.firstName || "");
+            setLastName(user.lastName || "");
+            setImageUrl(user.imageUrl);
           }} disabled={isSaving}>
             Annuler
           </Button>
@@ -342,7 +339,7 @@ const ProfileDetails = () => {
         </div>
       </div>
 
-      
+      {/* Section Emails */}
       <div className="space-y-4 pt-6 border-t border-slate-200">
         <h3 className="text-xl font-semibold text-slate-800">Adresses email</h3>
         {emailAddresses.map((email) => (
@@ -360,14 +357,14 @@ const ProfileDetails = () => {
               )}
               
               {email.verification.status !== "verified" && (
-                  <Button variant="ghost" size="sm" onClick={() => {
-                      setCurrentVerificationEmailId(email.id);
-                      setNewEmail(email.email);
-                      setIsVerifyingEmail(true);
-                      setAddEmailDialogOpen(true);
-                  }} className="text-slate-700">
-                      Vérifier
-                  </Button>
+                <Button variant="ghost" size="sm" onClick={() => {
+                  setCurrentVerificationEmailId(email.id);
+                  setNewEmail(email.email);
+                  setIsVerifyingEmail(true);
+                  setAddEmailDialogOpen(true);
+                }} className="text-slate-700">
+                  Vérifier
+                </Button>
               )}
               {!email.isPrimary && (
                 <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-500" onClick={() => handleDeleteEmail(email.id)} disabled={email.isPrimary}>
@@ -400,27 +397,27 @@ const ProfileDetails = () => {
                   className="bg-white border-slate-300 text-slate-800"
                 />
                 {showEmailVerificationPrompt && (
-                    <div className="bg-blue-50 border border-blue-200 text-blue-700 p-3 rounded-md text-sm mt-2">
-                        <p className="mb-2">Pour des raisons de sécurité, une étape de vérification supplémentaire est requise pour ajouter cet email. Veuillez procéder via l'interface de Clerk si ce problème persiste.</p>
-                        <Button
-                            variant="outline"
-                            className="bg-white border-blue-300 text-blue-700 hover:bg-blue-50"
-                            onClick={() => { openUserProfile(); setAddEmailDialogOpen(false); }}
-                        >
-                            Ouvrir le profil Clerk
-                        </Button>
-                    </div>
+                  <div className="bg-blue-50 border border-blue-200 text-blue-700 p-3 rounded-md text-sm mt-2">
+                    <p className="mb-2">Pour des raisons de sécurité, une étape de vérification supplémentaire est requise pour ajouter cet email. Veuillez procéder via l'interface de Clerk si ce problème persiste.</p>
+                    <Button
+                      variant="outline"
+                      className="bg-white border-blue-300 text-blue-700 hover:bg-blue-50"
+                      onClick={() => { openUserProfile(); setAddEmailDialogOpen(false); }}
+                    >
+                      Ouvrir le profil Clerk
+                    </Button>
+                  </div>
                 )}
                 <div className="flex items-center space-x-2">
-                    <Checkbox
-                        id="set-primary"
-                        checked={setPrimaryChecked}
-                        onCheckedChange={(checked) => setSetPrimaryChecked(Boolean(checked))}
-                        className="border-slate-400 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white"
-                    />
-                    <Label htmlFor="set-primary" className="text-sm text-slate-700 cursor-pointer">
-                        Définir comme principal
-                    </Label>
+                  <Checkbox
+                    id="set-primary"
+                    checked={setPrimaryChecked}
+                    onCheckedChange={(checked) => setSetPrimaryChecked(Boolean(checked))}
+                    className="border-slate-400 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white"
+                  />
+                  <Label htmlFor="set-primary" className="text-sm text-slate-700 cursor-pointer">
+                    Définir comme principal
+                  </Label>
                 </div>
               </>
             ) : (
@@ -459,7 +456,7 @@ const ProfileDetails = () => {
         </DialogContent>
       </Dialog>
 
-      
+      {/* Section Comptes connectés */}
       <div className="space-y-4 pt-6 border-t border-slate-200">
         <h3 className="text-xl font-semibold text-slate-800">Comptes connectés</h3>
         {connectedAccounts.map((account) => (
@@ -469,10 +466,10 @@ const ProfileDetails = () => {
           </div>
         ))}
         <div className="grid grid-cols-1 gap-4">
-            <Button variant="outline" className="w-full bg-white border-slate-300 text-slate-800 hover:bg-slate-100" onClick={handleConnectGoogle} disabled={isSaving}>
-                <img src="/google.png" alt="Google" className="size-5 mr-2" />
-                Connecter Google
-            </Button>
+          <Button variant="outline" className="w-full bg-white border-slate-300 text-slate-800 hover:bg-slate-100" onClick={handleConnectGoogle} disabled={isSaving}>
+            <img src="/google.png" alt="Google" className="size-5 mr-2" />
+            Connecter Google
+          </Button>
         </div>
       </div>
     </div>

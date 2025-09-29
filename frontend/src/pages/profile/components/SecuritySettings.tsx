@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,6 @@ import { useUser, useClerk, useSession } from "@clerk/clerk-react";
 import { isClerkAPIResponseError } from "@clerk/shared";
 import { Checkbox } from "@/components/ui/checkbox";
 import { apiClient } from "@/lib/axios";
-
 
 interface BackendSession {
   id: string;
@@ -27,16 +25,15 @@ interface BackendSession {
   };
 }
 
-
 const formatLastActive = (timestamp: number) => {
   const date = new Date(timestamp);
-  return date.toLocaleString('en-US', {
+  return date.toLocaleString('fr-FR', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    hour12: true,
+    hour12: false,
   });
 };
 
@@ -57,7 +54,6 @@ const SecuritySettings = () => {
   const [isSessionsLoading, setIsSessionsLoading] = useState(true);
   const [sessionsFetchError, setSessionsFetchError] = useState<string | null>(null);
 
-
   const fetchActiveDevices = useCallback(async () => {
     if (!user?.id) {
       setIsSessionsLoading(false);
@@ -66,17 +62,16 @@ const SecuritySettings = () => {
     setIsSessionsLoading(true);
     setSessionsFetchError(null);
     try {
-  const response = await apiClient.get<BackendSession[]>("/users/sessions");
+      const response = await apiClient.get<BackendSession[]>("/users/sessions");
       setActiveDevices(response.data.filter(session => session.status === 'active')); 
     } catch (error: any) {
-      console.error("Error fetching sessions from backend:", error);
-      setSessionsFetchError("Failed to load active devices.");
-      toast.error("Failed to load active devices.");
+      console.error("Erreur lors du chargement des sessions depuis le backend:", error);
+      setSessionsFetchError("Échec du chargement des appareils actifs.");
+      toast.error("Échec du chargement des appareils actifs.");
     } finally {
       setIsSessionsLoading(false);
     }
   }, [user?.id]);
-
 
   useEffect(() => {
     if (isUserLoaded && user?.id) {
@@ -89,22 +84,22 @@ const SecuritySettings = () => {
     setShowClerkVerificationPrompt(false);
 
     if (!currentPassword) {
-      setPasswordError("Current password is required.");
+      setPasswordError("Le mot de passe actuel est requis.");
       return;
     }
     if (newPassword.length === 0) {
-      setPasswordError("New password cannot be empty.");
+      setPasswordError("Le nouveau mot de passe ne peut pas être vide.");
       return;
     }
     if (newPassword !== confirmPassword) {
-      setPasswordError("New passwords do not match.");
+      setPasswordError("Les nouveaux mots de passe ne correspondent pas.");
       return;
     }
 
     setIsChangingPassword(true);
     try {
       if (!user) {
-        toast.error("User not loaded.");
+        toast.error("Utilisateur non chargé.");
         return;
       }
 
@@ -117,22 +112,22 @@ const SecuritySettings = () => {
         await handleSignOutOtherDevices();
       }
 
-      toast.success("Password updated successfully! 🎉");
+      toast.success("Mot de passe mis à jour avec succès ! 🎉");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
       setSignOutOthersChecked(false);
       fetchActiveDevices(); 
     } catch (error: any) {
-      console.error("Error changing password:", error);
+      console.error("Erreur lors du changement de mot de passe:", error);
       const errorMessage = isClerkAPIResponseError(error)
-        ? error.errors[0]?.longMessage || "Failed to update password."
-        : "Failed to update password.";
+        ? error.errors[0]?.longMessage || "Échec de la mise à jour du mot de passe."
+        : "Échec de la mise à jour du mot de passe.";
 
       if (errorMessage.includes("additional verification")) {
-        setPasswordError("Additional verification is required to change your password.");
+        setPasswordError("Une vérification supplémentaire est requise pour changer votre mot de passe.");
         setShowClerkVerificationPrompt(true);
-        toast.error("Additional verification needed.");
+        toast.error("Vérification supplémentaire nécessaire.");
       } else {
         setPasswordError(errorMessage);
         toast.error(errorMessage);
@@ -144,22 +139,22 @@ const SecuritySettings = () => {
 
   const handleSignOutSpecificDevice = async (sessionId: string) => {
     if (!user) {
-      toast.error("User not loaded.");
+      toast.error("Utilisateur non chargé.");
       return;
     }
     try {
-  await apiClient.delete(`/users/sessions/${sessionId}`);
-      toast.success('Device signed out.');
+      await apiClient.delete(`/users/sessions/${sessionId}`);
+      toast.success('Appareil déconnecté.');
       fetchActiveDevices(); 
     } catch (error) {
-      console.error("Error revoking session:", error);
-      toast.error('Failed to sign out device.');
+      console.error("Erreur lors de la révocation de la session:", error);
+      toast.error('Échec de la déconnexion de l\'appareil.');
     }
   };
 
   const handleSignOutOtherDevices = async () => {
     if (!activeDevices || !currentSession?.id) {
-      toast.error("Session data not available or no current session.");
+      toast.error("Données de session non disponibles ou session actuelle manquante.");
       return;
     }
 
@@ -170,34 +165,34 @@ const SecuritySettings = () => {
           await apiClient.delete(`/users/sessions/${session.id}`);
           signOutCount++;
         } catch (error) {
-          console.error("Failed to revoke session:", session.id, error);
-          toast.error(`Failed to sign out of a device.`);
+          console.error("Échec de la révocation de la session:", session.id, error);
+          toast.error(`Échec de la déconnexion d'un appareil.`);
         }
       }
     }
     if (signOutCount > 0) {
-      toast.success(`Signed out of ${signOutCount} other device(s).`);
+      toast.success(`Déconnecté de ${signOutCount} autre(s) appareil(s).`);
       fetchActiveDevices(); 
     } else {
-      toast("No other devices to sign out from.");
+      toast("Aucun autre appareil à déconnecter.");
     }
   };
 
   const handleDeleteAccount = async () => {
     if (!user) {
-      toast.error("User not loaded.");
+      toast.error("Utilisateur non chargé.");
       return;
     }
-    if (window.confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.")) {
       try {
         await user.delete();
-        toast.success("Account deleted successfully.");
+        toast.success("Compte supprimé avec succès.");
         window.location.href = "/";
       } catch (error: any) {
-        console.error("Error deleting account:", error);
+        console.error("Erreur lors de la suppression du compte:", error);
         const errorMessage = isClerkAPIResponseError(error)
-          ? error.errors[0]?.longMessage || "Failed to delete account."
-          : "Failed to delete account.";
+          ? error.errors[0]?.longMessage || "Échec de la suppression du compte."
+          : "Échec de la suppression du compte.";
         toast.error(errorMessage);
       }
     }
@@ -206,14 +201,14 @@ const SecuritySettings = () => {
   if (!isUserLoaded || !isCurrentSessionLoaded || isSessionsLoading) {
     return (
       <div className="flex items-center justify-center h-full min-h-[200px]">
-        <p className="text-zinc-400">Loading security settings...</p>
+        <p className="text-zinc-400">Chargement des paramètres de sécurité...</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      
+      {/* Section Mise à jour du mot de passe */}
       <div className="space-y-4">
         <h3 className="text-xl font-semibold text-slate-800">Mettre à jour le mot de passe</h3>
         <div>
@@ -279,12 +274,12 @@ const SecuritySettings = () => {
 
         <div className="flex justify-end gap-2">
           <Button variant="outline" className="bg-white border-slate-300 text-slate-800 hover:bg-slate-100" onClick={() => {
-              setCurrentPassword("");
-              setNewPassword("");
-              setConfirmPassword("");
-              setPasswordError(null);
-              setShowClerkVerificationPrompt(false);
-              setSignOutOthersChecked(false);
+            setCurrentPassword("");
+            setNewPassword("");
+            setConfirmPassword("");
+            setPasswordError(null);
+            setShowClerkVerificationPrompt(false);
+            setSignOutOthersChecked(false);
           }} disabled={isChangingPassword}>
             Annuler
           </Button>
@@ -294,7 +289,7 @@ const SecuritySettings = () => {
         </div>
       </div>
 
-      
+      {/* Section Appareils actifs */}
       <div className="space-y-4 pt-6 border-t border-slate-200">
         <h3 className="text-xl font-semibold text-slate-800">Appareils actifs</h3>
         <p className="text-slate-600">Gérez les appareils actuellement connectés à votre compte.</p>
@@ -354,16 +349,17 @@ const SecuritySettings = () => {
           </Button>
         </div>
 
-        
-        <div className="pt-6 border-t border-slate-200 mt-6">
-          <Button
-            variant="destructive"
-            className="w-full sm:w-auto"
-            onClick={handleDeleteAccount}
-          >
-              Supprimer le compte
-          </Button>
-        </div>
+        {/* Section Suppression du compte */}
+        <div className="pt-6 border-t border-slate-200 mt-6 flex justify-center">
+  <Button
+    variant="destructive"
+    className="w-full sm:w-auto"
+    onClick={handleDeleteAccount}
+  >
+    Supprimer le compte
+  </Button>
+</div>
+
       </div>
     </div>
   );

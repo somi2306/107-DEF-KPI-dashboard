@@ -1,28 +1,29 @@
-
 import { useSignIn } from "@clerk/clerk-react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 
 const SignInWithEmail = () => {
-  const { signIn, isLoaded, setActive } = useSignIn(); 
+  const { signIn, isLoaded, setActive } = useSignIn();
   const [emailAddress, setEmailAddress] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   if (!isLoaded) return null;
 
   const handleEmailSignIn = async () => {
     try {
-      const result = await signIn.create({ 
+      const result = await signIn.create({
         identifier: emailAddress,
         password,
       });
 
-      if (result.status === "complete") { 
-        await setActive({ session: result.createdSessionId }); 
-        navigate("/auth-callback"); 
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
+        navigate("/auth-callback");
       } else {
         console.error("Connexion incomplète:", result);
         alert("La connexion nécessite des étapes supplémentaires. Veuillez vérifier la console.");
@@ -43,13 +44,22 @@ const SignInWithEmail = () => {
         onChange={(e) => setEmailAddress(e.target.value)}
         className='bg-zinc-800 border-zinc-700 text-white placeholder-zinc-400'
       />
-      <Input
-        type='password'
-        placeholder='Mot de passe'
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        className='bg-zinc-800 border-zinc-700 text-white placeholder-zinc-400'
-      />
+      <div className="relative">
+        <Input
+          type={showPassword ? 'text' : 'password'}
+          placeholder='Mot de passe'
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className='bg-zinc-800 border-zinc-700 text-white placeholder-zinc-400 pr-10'
+        />
+        <button
+          type="button"
+          onClick={() => setShowPassword(!showPassword)}
+          className="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-400 hover:text-white"
+        >
+          {showPassword ? <FaEyeSlash /> : <FaEye />}
+        </button>
+      </div>
       <Button onClick={handleEmailSignIn} className='w-full bg-emerald-500 hover:bg-emerald-600 text-black'>
         Se connecter
       </Button>
